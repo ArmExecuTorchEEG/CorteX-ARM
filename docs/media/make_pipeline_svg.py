@@ -7,20 +7,29 @@ CW, CH = 300, 138
 COLS = [24, 350, 676]
 ROWS = [24, 230, 436]
 
+# Glass look: each card is its hue at low alpha, edged in the same hue, with a white sheen on top.
+HUES = {"host": "124,92,255", "m55": "244,63,94", "u85": "245,158,11", "board": "6,182,212", "band": "234,179,8"}
+
 THEMES = {
     "light": dict(
-        bg="#ffffff", title="#2b2b2b", tools="#3a3a3a", role="#6b6b6b",
+        title="#2b2b2b", tools="#3a3a3a", role="#6b6b6b",
         stroke="#4b4b4b", arrow="#9a9a9a", label="#6b6b6b",
-        host="#e8e2ff", m55="#fde0e3", u85="#fde5cc", board="#d3f3fa", band="#fff2c6",
-        chip_host="#c9bdfb", chip_m55="#f7b9c1", chip_u85="#f8c78f", chip_board="#9fe3f1",
+        fill_a=0.13, edge_a=0.75, chip_a=0.28, sheen_a=0.65,
     ),
     "dark": dict(
-        bg="#0d1117", title="#e6edf3", tools="#c9d1d9", role="#8b949e",
+        title="#e6edf3", tools="#c9d1d9", role="#8b949e",
         stroke="#c9d1d9", arrow="#6e7681", label="#8b949e",
-        host="#2a2547", m55="#3d2228", u85="#3d2d1c", board="#13343b", band="#3a3218",
-        chip_host="#463d78", chip_m55="#6a3440", chip_u85="#6a4a26", chip_board="#1f5a66",
+        fill_a=0.18, edge_a=0.85, chip_a=0.40, sheen_a=0.10,
     ),
 }
+
+
+def glass(t, place, x, y, w, h, rx):
+    """Translucent card: tinted fill, highlighted edge, top sheen."""
+    hue = HUES[place]
+    return (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="rgba({hue},{t["fill_a"]})" '
+            f'stroke="rgba({hue},{t["edge_a"]})" stroke-width="1.5"/>'
+            f'<rect x="{x + 1.5}" y="{y + 1.5}" width="{w - 3}" height="{h * 0.5}" rx="{rx - 1.5}" fill="url(#sheen)"/>')
 
 CHIP_TEXT = {"host": "HOST", "m55": "M55", "u85": "U85", "board": "BOARD"}
 
@@ -91,18 +100,21 @@ def build(theme):
     p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
          "font-family=\"Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif\">",
          '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" '
-         f'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{t["arrow"]}"/></marker></defs>',
-         f'<rect width="{W}" height="{H}" rx="22" fill="{t["bg"]}"/>']
+         f'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{t["arrow"]}"/></marker>'
+         '<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">'
+         f'<stop offset="0" stop-color="#ffffff" stop-opacity="{t["sheen_a"]}"/>'
+         '<stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>']
 
     for col, row, place, icon, title, tools, role in CARDS:
         x, y = COLS[col], ROWS[row]
-        p.append(f'<rect x="{x}" y="{y}" width="{CW}" height="{CH}" rx="16" fill="{t[place]}"/>')
+        p.append(glass(t, place, x, y, CW, CH, 16))
         p.append(f'<g transform="translate({x + 20},{y + 20}) scale(1.25)" fill="none" stroke="{t["stroke"]}" '
                  f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
                  f'{ICONS[icon].replace("{stroke}", t["stroke"])}</g>')
         p.append(f'<text x="{x + 62}" y="{y + 43}" font-size="16" font-weight="700" letter-spacing="0.4" '
                  f'fill="{t["title"]}">{esc(title)}</text>')
-        p.append(f'<rect x="{x + CW - 76}" y="{y + 18}" width="58" height="22" rx="11" fill="{t["chip_" + place]}"/>')
+        p.append(f'<rect x="{x + CW - 76}" y="{y + 18}" width="58" height="22" rx="11" '
+                 f'fill="rgba({HUES[place]},{t["chip_a"]})" stroke="rgba({HUES[place]},{t["edge_a"]})" stroke-width="1"/>')
         p.append(f'<text x="{x + CW - 47}" y="{y + 33.5}" font-size="11" font-weight="700" letter-spacing="0.6" '
                  f'text-anchor="middle" fill="{t["title"]}">{CHIP_TEXT[place]}</text>')
         p.append(f'<text x="{x + 22}" y="{y + 84}" font-size="14.5" font-weight="600" fill="{t["tools"]}">{esc(tools)}</text>')
@@ -131,7 +143,7 @@ def build(theme):
     p.append(flow(f"M{c1 + CW + 4},{r2 + mid} H{c2 - 4}", t))
 
     for y, name, body, right in BANDS:
-        p.append(f'<rect x="24" y="{y}" width="{W - 48}" height="48" rx="12" fill="{t["band"]}"/>')
+        p.append(glass(t, "band", 24, y, W - 48, 48, 12))
         p.append(f'<text x="46" y="{y + 30}" font-size="15" font-weight="700" letter-spacing="0.4" '
                  f'fill="{t["title"]}">{esc(name)}</text>')
         p.append(f'<text x="210" y="{y + 30}" font-size="14.5" font-weight="600" fill="{t["tools"]}">{esc(body)}</text>')
