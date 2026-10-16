@@ -9,13 +9,13 @@ ROWS = [24, 230, 436]
 
 THEMES = {
     "light": dict(
-        bg="#ffffff", title="#2b2b2b", tools="#3a3a3a", role="#6b6b6b",
+        title="#2b2b2b", tools="#3a3a3a", role="#6b6b6b",
         stroke="#4b4b4b", arrow="#9a9a9a", label="#6b6b6b",
         host="#e8e2ff", m55="#fde0e3", u85="#fde5cc", board="#d3f3fa", band="#fff2c6",
         chip_host="#c9bdfb", chip_m55="#f7b9c1", chip_u85="#f8c78f", chip_board="#9fe3f1",
     ),
     "dark": dict(
-        bg="#0d1117", title="#e6edf3", tools="#c9d1d9", role="#8b949e",
+        title="#e6edf3", tools="#c9d1d9", role="#8b949e",
         stroke="#c9d1d9", arrow="#6e7681", label="#8b949e",
         host="#2a2547", m55="#3d2228", u85="#3d2d1c", board="#13343b", band="#3a3218",
         chip_host="#463d78", chip_m55="#6a3440", chip_u85="#6a4a26", chip_board="#1f5a66",
@@ -91,8 +91,7 @@ def build(theme):
     p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
          "font-family=\"Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif\">",
          '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" '
-         f'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{t["arrow"]}"/></marker></defs>',
-         f'<rect width="{W}" height="{H}" rx="22" fill="{t["bg"]}"/>']
+         f'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{t["arrow"]}"/></marker></defs>']
 
     for col, row, place, icon, title, tools, role in CARDS:
         x, y = COLS[col], ROWS[row]
