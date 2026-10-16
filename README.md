@@ -12,16 +12,10 @@ A stroke-rehab brain-computer interface. The user imagines moving the left or ri
 
 ## Architecture
 
-```
-┌──────────────┐  USB/BLE   ┌─────────────┐  UART 921600  ┌────────────────────────────────────────┐
-│ EEG headset  │ ─────────▶ │ Laptop      │ ────────────▶ │ Alif E8                                 │
-│ (22 ch max)  │            │ bridge.py   │  int16 frames │  Cortex-M55: ring buffer, 7–30 Hz IIR,  │
-└──────────────┘            │             │ ◀──────────── │    normalize, window, IMU gate          │
-                            │ demo UI     │  class, conf, │  Ethos-U85: TinyEEGNet int8 (.pte)      │
-                            └─────────────┘  latency, imu │  LED: green = left, blue = right, red = │
-                                                          │       motion                            │
-                                                          └────────────────────────────────────────┘
-```
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/media/pipeline-dark.svg">
+<img src="docs/media/pipeline.svg" alt="Pipeline: EEG source and host bridge on the laptop, UART into the Alif E8, Cortex-M55 preprocessing, TinyEEGNet int8 on the Ethos-U85, IMU motion gate, LEDs and JSON out to the demo UI" width="900">
+</picture></p>
 
 ### Workload placement
 
