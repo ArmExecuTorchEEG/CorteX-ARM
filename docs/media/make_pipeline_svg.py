@@ -1,0 +1,149 @@
+"""Generate the Edge_Deploy pipeline block diagram (light + dark animated SVG)."""
+import sys
+from pathlib import Path
+
+W, H = 1000, 730
+CW, CH = 300, 138
+COLS = [24, 350, 676]
+ROWS = [24, 230, 436]
+
+THEMES = {
+    "light": dict(
+        bg="#ffffff", title="#2b2b2b", tools="#3a3a3a", role="#6b6b6b",
+        stroke="#4b4b4b", arrow="#9a9a9a", label="#6b6b6b",
+        host="#e8e2ff", m55="#fde0e3", u85="#fde5cc", board="#d3f3fa", band="#fff2c6",
+        chip_host="#c9bdfb", chip_m55="#f7b9c1", chip_u85="#f8c78f", chip_board="#9fe3f1",
+    ),
+    "dark": dict(
+        bg="#0d1117", title="#e6edf3", tools="#c9d1d9", role="#8b949e",
+        stroke="#c9d1d9", arrow="#6e7681", label="#8b949e",
+        host="#2a2547", m55="#3d2228", u85="#3d2d1c", board="#13343b", band="#3a3218",
+        chip_host="#463d78", chip_m55="#6a3440", chip_u85="#6a4a26", chip_board="#1f5a66",
+    ),
+}
+
+CHIP_TEXT = {"host": "HOST", "m55": "M55", "u85": "U85", "board": "BOARD"}
+
+# 24x24 line icons; extra animated parts are appended per icon.
+ICONS = {
+    "wave": '<path d="M1 12h3l2-5 3 10 3-13 3 11 2-3h6" stroke-dasharray="56 56" '
+            '><animate attributeName="stroke-dashoffset" '
+            'values="0;-112" dur="2.4s" repeatCount="indefinite"/></path>',
+    "laptop": '<rect x="3" y="5" width="18" height="11" rx="1.5"/><path d="M1 19h22"/>',
+    "plug": '<path d="M8 3v5M16 3v5M5 8h14v3a7 7 0 0 1-14 0zM12 18v3"/>',
+    "chip": '<rect x="6" y="6" width="12" height="12" rx="1.5"/>'
+            '<path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>'
+            '<path d="M9 13l1.5-3 2 4 1.5-2"/>',
+    "npu": '<rect x="6" y="6" width="12" height="12" rx="1.5"/>'
+           '<path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>'
+           '<rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="{stroke}" stroke="none">'
+           '<animate attributeName="opacity" values="1;0.25;1" dur="0.8s" repeatCount="indefinite"/></rect>',
+    "shield": '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/>'
+              '<path d="M9 12l2 2 4-4"><animate attributeName="opacity" values="1;1;0;1" '
+              'keyTimes="0;0.6;0.8;1" dur="3s" repeatCount="indefinite"/></path>',
+    "led": '<circle cx="12" cy="9" r="6" stroke="none">'
+           '<animate attributeName="fill" values="#2da44e;#1f6feb;#cf222e" calcMode="discrete" '
+           'dur="3s" repeatCount="indefinite"/></circle>'
+           '<circle cx="12" cy="9" r="6"/><path d="M9.5 15v6M14.5 15v6"/>',
+    "monitor": '<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/>'
+               '<path d="M5 13l3-3 3 2 4-5 4 3"/>',
+    "imu": '<circle cx="12" cy="13" r="2"/><path d="M12 11V3M10 5l2-2 2 2M13.7 14l6.3 4M17.5 18.6l2.5-.6-.6-2.4'
+           'M10.3 14L4 18M6.5 18.6L4 18l.6-2.4"/>'
+           '<circle cx="12" cy="13" r="8" stroke-dasharray="2 3">'
+           '<animate attributeName="opacity" values="0.9;0.1;0.9" dur="1.5s" repeatCount="indefinite"/></circle>',
+}
+
+# (col, row, place, icon, title, tools, role lines)
+CARDS = [
+    (0, 0, "host", "wave", "EEG SOURCE", "headset · replay .npz", ["22 ch · 250 Hz, live or BCI IV 2a"]),
+    (1, 0, "host", "laptop", "HOST BRIDGE", "bridge.py", ["frames samples; no filtering, no ML"]),
+    (2, 0, "board", "plug", "UART LINK", "921600 baud · 0xAA55", ["uint8 n_ch · uint16 seq · int16[n_ch]"]),
+    (2, 1, "m55", "chip", "CORTEX-M55 DSP", "ring buffer · 7–30 Hz IIR", ["normalize · 2 s window (22×500)"]),
+    (1, 1, "u85", "npu", "ETHOS-U85 NPU", "TinyEEGNet int8 · ExecuTorch", ["(1,1,22,500) → 2 logits, left / right"]),
+    (0, 1, "m55", "shield", "MOTION GATE", "IMU threshold", ["drops the window on head movement"]),
+    (0, 2, "board", "imu", "IMU", "ICM-42670 · I2C", ["100 Hz accel, on the board"]),
+    (1, 2, "board", "led", "OUTPUT", "LEDs · UART JSON", ["green left · blue right · red motion"]),
+    (2, 2, "host", "monitor", "DEMO UI", "demo_ui.py", ["class, confidence, latency, motion"]),
+]
+
+BANDS = [
+    (598, "OFFLINE BUILD", "BCI IV 2a → TinyEEGNet → int8 PTQ → Vela → .pte", "v0.1-baseline · v0.2-fvp"),
+    (656, "VERIFY", "FVP 20/20 test vectors · board output == PyTorch", "latency · NPU cycles · accuracy"),
+]
+
+
+def esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def flow(d, t, label=None, lx=0, ly=0, anchor="start"):
+    out = (f'<path d="{d}" fill="none" stroke="{t["arrow"]}" stroke-width="2.2" '
+           f'stroke-dasharray="5 5" marker-end="url(#ah)">'
+           f'<animate attributeName="stroke-dashoffset" from="10" to="0" dur="0.6s" repeatCount="indefinite"/></path>')
+    if label:
+        out += (f'<text x="{lx}" y="{ly}" font-size="12.5" fill="{t["label"]}" '
+                f'text-anchor="{anchor}">{esc(label)}</text>')
+    return out
+
+
+def build(theme):
+    t = THEMES[theme]
+    p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
+         "font-family=\"Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif\">",
+         '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" '
+         f'orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="{t["arrow"]}"/></marker></defs>',
+         f'<rect width="{W}" height="{H}" rx="22" fill="{t["bg"]}"/>']
+
+    for col, row, place, icon, title, tools, role in CARDS:
+        x, y = COLS[col], ROWS[row]
+        p.append(f'<rect x="{x}" y="{y}" width="{CW}" height="{CH}" rx="16" fill="{t[place]}"/>')
+        p.append(f'<g transform="translate({x + 20},{y + 20}) scale(1.25)" fill="none" stroke="{t["stroke"]}" '
+                 f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+                 f'{ICONS[icon].replace("{stroke}", t["stroke"])}</g>')
+        p.append(f'<text x="{x + 62}" y="{y + 43}" font-size="16" font-weight="700" letter-spacing="0.4" '
+                 f'fill="{t["title"]}">{esc(title)}</text>')
+        p.append(f'<rect x="{x + CW - 76}" y="{y + 18}" width="58" height="22" rx="11" fill="{t["chip_" + place]}"/>')
+        p.append(f'<text x="{x + CW - 47}" y="{y + 33.5}" font-size="11" font-weight="700" letter-spacing="0.6" '
+                 f'text-anchor="middle" fill="{t["title"]}">{CHIP_TEXT[place]}</text>')
+        p.append(f'<text x="{x + 22}" y="{y + 84}" font-size="14.5" font-weight="600" fill="{t["tools"]}">{esc(tools)}</text>')
+        for i, line in enumerate(role):
+            p.append(f'<text x="{x + 22}" y="{y + 110 + 18 * i}" font-size="13" fill="{t["role"]}">{esc(line)}</text>')
+
+    r0, r1, r2 = ROWS
+    c0, c1, c2 = COLS
+    mid = CH / 2
+    # top row, left to right
+    p.append(flow(f"M{c0 + CW + 4},{r0 + mid} H{c1 - 4}", t))
+    p.append(flow(f"M{c1 + CW + 4},{r0 + mid} H{c2 - 4}", t))
+    # UART down into the M55
+    p.append(flow(f"M{c2 + CW / 2},{r0 + CH + 4} V{r1 - 4}", t, "frames · 250 Hz", c2 + CW / 2 + 10, r0 + CH + 38))
+    # middle row, right to left
+    p.append(flow(f"M{c2 - 4},{r1 + mid} H{c1 + CW + 4}", t))
+    p.append(flow(f"M{c1 - 4},{r1 + mid} H{c0 + CW + 4}", t))
+    # IMU up into the gate
+    p.append(flow(f"M{c0 + CW / 2},{r2 - 4} V{r1 + CH + 4}", t, "100 Hz accel", c0 + CW / 2 + 10, r1 + CH + 38))
+    # gate to output: elbow through the row gap
+    gx = c0 + CW - 50
+    gy = r1 + CH + (r2 - r1 - CH) / 2
+    p.append(flow(f"M{gx},{r1 + CH + 4} V{gy} H{c1 + CW / 2} V{r2 - 4}", t, "cls · conf · motion",
+                  c1 + CW / 2 + 10, gy - 8))
+    # output back to the laptop UI
+    p.append(flow(f"M{c1 + CW + 4},{r2 + mid} H{c2 - 4}", t))
+
+    for y, name, body, right in BANDS:
+        p.append(f'<rect x="24" y="{y}" width="{W - 48}" height="48" rx="12" fill="{t["band"]}"/>')
+        p.append(f'<text x="46" y="{y + 30}" font-size="15" font-weight="700" letter-spacing="0.4" '
+                 f'fill="{t["title"]}">{esc(name)}</text>')
+        p.append(f'<text x="210" y="{y + 30}" font-size="14.5" font-weight="600" fill="{t["tools"]}">{esc(body)}</text>')
+        p.append(f'<text x="{W - 46}" y="{y + 30}" font-size="13" text-anchor="end" fill="{t["role"]}">{esc(right)}</text>')
+
+    p.append("</svg>")
+    return "\n".join(p) + "\n"
+
+
+if __name__ == "__main__":
+    out = Path(sys.argv[1])
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "pipeline.svg").write_text(build("light"))
+    (out / "pipeline-dark.svg").write_text(build("dark"))
+    print("wrote", out / "pipeline.svg", out / "pipeline-dark.svg")
