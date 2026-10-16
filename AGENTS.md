@@ -6,11 +6,11 @@ Project overview and repo map: https://github.com/ArmExecuTorchEEG
 ## Ownership
 | Path | Owner | Others may |
 |---|---|---|
-| `firmware/src/uart_rx.cpp`, `preprocess.cpp`, `imu.cpp` | msoliman6 | PR |
-| `firmware/src/infer.cpp`, `leds.cpp`, `main.cpp` | msoliman6 | PR |
+| `firmware/src/uart_rx.cpp`, `preprocess.cpp`, `imu.cpp` | TBD | PR |
+| `firmware/src/infer.cpp`, `leds.cpp`, `main.cpp` | TBD | PR |
 | `firmware/ai_layer/`, `firmware/model/` | generated/fetched — nobody edits | `./tools/fetch_model.sh` |
-| `host/bridge.py`, `host/drivers/` | (unassigned) | PR |
-| `host/demo_ui.py`, `host/measure.py` | jihyungku | PR |
+| `host/bridge.py`, `host/drivers/` | TBD | PR |
+| `host/demo_ui.py`, `host/measure.py` | TBD | PR |
 | `docs/`, `results/` | everyone | add only; `docs/demo_script.md` edits via PR |
 
 ## Contracts
