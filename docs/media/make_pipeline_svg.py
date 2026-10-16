@@ -64,12 +64,12 @@ ICONS = {
 
 # (col, row, place, icon, title, tools, role lines)
 CARDS = [
-    (0, 0, "host", "wave", "EEG SOURCE", "headset · replay .npz", ["22 ch · 250 Hz, live or BCI IV 2a"]),
+    (0, 0, "host", "wave", "EEG REPLAY", "BCI IV 2a · session 2", ["held-out trials, streamed at 250 Hz"]),
     (1, 0, "host", "laptop", "HOST BRIDGE", "bridge.py", ["frames samples; no filtering, no ML"]),
     (2, 0, "board", "plug", "UART LINK", "921600 baud · 0xAA55", ["uint8 n_ch · uint16 seq · int16[n_ch]"]),
     (2, 1, "m55", "chip", "CORTEX-M55 DSP", "ring buffer · 7–30 Hz IIR", ["normalize · 2 s window (22×500)"]),
     (1, 1, "u85", "npu", "ETHOS-U85 NPU", "TinyEEGNet int8 · ExecuTorch", ["(1,1,22,500) → 2 logits, left / right"]),
-    (0, 1, "m55", "shield", "MOTION GATE", "IMU threshold", ["drops the window on head movement"]),
+    (0, 1, "m55", "shield", "MOTION GATE", "IMU threshold", ["drops the window when the board moves"]),
     (0, 2, "board", "imu", "IMU", "ICM-42670 · I2C", ["100 Hz accel, on the board"]),
     (1, 2, "board", "led", "OUTPUT", "LEDs · UART JSON", ["green left · blue right · red motion"]),
     (2, 2, "host", "monitor", "DEMO UI", "demo_ui.py", ["class, confidence, latency, motion"]),
