@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/banner.png" alt="ArmExecuTorchEEG — Brainwaves into action" width="100%"></p>
+
 # Edge_Deploy
 
 **Hackathon submission repo.** Live motor-imagery EEG → Alif Ensemble E8 → Ethos-U85 inference → predicted hand, with IMU-based artifact gating. Judged release: tag `v1.0-submission`.
