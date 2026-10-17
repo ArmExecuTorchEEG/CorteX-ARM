@@ -61,37 +61,7 @@ Per 250 Hz sample $n$ ($\mathbf{x}[n] \in \mathbb{R}^{22}$, µV, `channel_order`
 8. **Quantize.** $q = \text{clip}\big(\text{round}(\hat X / 0.0695584) + (-12),\, -128,\, 127\big)$ (`input_quant_scale`, `input_zero_point`, round half to even). `.pte` takes float $(q + 12)\cdot 0.0695584$, re-quantizes to exactly $q$; all conv/linear int8 on Ethos-U85.
 9. **Output.** Logits $\ell_0$ (left), $\ell_1$ (right); class $= \arg\max \ell$; conf $= \text{softmax}(\ell)_{\text{class}}$; IMU motion in last 500 ms → class −1 (gated).
 
-```
-state: z[ch][sec][2] = 0               # biquad state, 22 channels × 4 sections (float64)
-       n250 = 0; m125 = 0; ring[22][512]; A = ea_matrices[subject]
-
-on_sample(count[22]):                    # every 250 Hz UART data frame
-    x = count * (100/2048)               # 1. µV
-    x = x - mean(x)                      # 2. common average reference
-    for ch in 0..21:                     # 3. band-pass, DF2-T, section after section
-        u = x[ch]
-        for s in 0..3:
-            y           = b0[s]*u + z[ch][s][0]
-            z[ch][s][0] = b1[s]*u - a1[s]*y + z[ch][s][1]
-            z[ch][s][1] = b2[s]*u - a2[s]*y
-            u = y
-        x[ch] = u
-    if n250 is even:                     # 4. decimate ×2 (phase 0)
-        ring[:, m125 mod 512] = x; m125 += 1
-    n250 += 1
-    if cue pending and m125 == cue125 + 318:     # 5. window complete (cue125 = cue250 // 2)
-        infer_window()
-
-infer_window():
-    X = ring[:, m125-256 .. m125)        # 22 × 256
-    X = A @ X                            # 6. Euclidean alignment (float64, then float32)
-    X = X / input_scale                  # 7. scale
-    q = clip(round_half_even(X / input_quant_scale) + input_zero_point, -128, 127)   # 8. int8
-    logits = npu_run(pte, (q - input_zero_point) * input_quant_scale)                 # 9. TinyEEGNet
-    cls = argmax(logits); conf = softmax(logits)[cls]
-    if motion_in_last_500_ms: cls = -1   # IMU gate
-    emit_json(t, seq, trial, subject, cls, raw_cls, conf, logits, lat_us, motion, label)
-```
+Pseudocode of steps 1–9: [`docs/architecture.md`](docs/architecture.md#preprocessing-pseudocode).
 
 Steps 2, 6, 7 are linear spatial maps; they commute with the first (temporal) conv, so could fold into spatial depthwise weights of a per-subject `.pte`. Steps 3–4: stateful per-sample IIR, stay on CPU. Shipped build keeps 2–8 on CPU, one shared `.pte`. Cost at 400 MHz: steps 1–4 ≈ 250 cycles/sample (0.6 µs); 6–8 ≈ 100 k cycles/window (0.25 ms); inference 128 k NPU cycles (0.32 ms).
 

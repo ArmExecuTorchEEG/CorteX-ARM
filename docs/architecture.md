@@ -115,3 +115,39 @@ Expected build noise: every build prints two `-Wnan-infinity-disabled` warnings 
 - LED polarity and pins: RGB LED 0, driven high = on as in the pack's Blinky example.
 - Ethos-U PMU counters on the E8.
 - All real timing (`lat_us`, cycles at 400 MHz).
+
+## Preprocessing pseudocode
+
+What `firmware/src/preprocess.cpp` and `host/pipeline_ref.py` implement; equations and constants are in the README signal-path section.
+
+```
+state: z[ch][sec][2] = 0               # biquad state, 22 channels × 4 sections (float64)
+       n250 = 0; m125 = 0; ring[22][512]; A = ea_matrices[subject]
+
+on_sample(count[22]):                    # every 250 Hz UART data frame
+    x = count * (100/2048)               # 1. µV
+    x = x - mean(x)                      # 2. common average reference
+    for ch in 0..21:                     # 3. band-pass, DF2-T, section after section
+        u = x[ch]
+        for s in 0..3:
+            y           = b0[s]*u + z[ch][s][0]
+            z[ch][s][0] = b1[s]*u - a1[s]*y + z[ch][s][1]
+            z[ch][s][1] = b2[s]*u - a2[s]*y
+            u = y
+        x[ch] = u
+    if n250 is even:                     # 4. decimate ×2 (phase 0)
+        ring[:, m125 mod 512] = x; m125 += 1
+    n250 += 1
+    if cue pending and m125 == cue125 + 318:     # 5. window complete (cue125 = cue250 // 2)
+        infer_window()
+
+infer_window():
+    X = ring[:, m125-256 .. m125)        # 22 × 256
+    X = A @ X                            # 6. Euclidean alignment (float64, then float32)
+    X = X / input_scale                  # 7. scale
+    q = clip(round_half_even(X / input_quant_scale) + input_zero_point, -128, 127)   # 8. int8
+    logits = npu_run(pte, (q - input_zero_point) * input_quant_scale)                 # 9. TinyEEGNet
+    cls = argmax(logits); conf = softmax(logits)[cls]
+    if motion_in_last_500_ms: cls = -1   # IMU gate
+    emit_json(t, seq, trial, subject, cls, raw_cls, conf, logits, lat_us, motion, label)
+```
