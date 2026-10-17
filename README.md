@@ -35,6 +35,42 @@ One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B,
 
 **Replay mode** (`--source replay`) is the only EEG source: it feeds recorded BCI IV 2a trials through the UART path in real time. It is used for development and for the judged demo.
 
+## Signal path: from raw samples to the model input
+
+Everything between the UART and the NPU is deterministic arithmetic from `firmware/model/params.json` (release `v0.5-distill`); `host/pipeline_ref.py` is the Python reference and the firmware matches it bit for bit (`make -C firmware/tests test`, FVP self-test). Code: `firmware/src/preprocess.cpp`.
+
+```mermaid
+flowchart LR
+  A["UART frame<br/>int16 counts, 22 ch, 250 Hz"] --> B["1. Decode<br/>x = count × 0.048828125 µV"]
+  B --> C["2. CAR<br/>x_c = x − mean over 22 ch"]
+  C --> D["3. Band-pass 7–30 Hz<br/>4 biquads, DF2-T, state per channel"]
+  D --> E["4. Decimate ×2<br/>keep even samples → 125 Hz"]
+  E --> F["5. Ring buffer 22 × 256<br/>window = [cue+62, cue+318) at 125 Hz"]
+  F --> G["6. Euclidean alignment<br/>X̃ = A_s · X  (22×22 per subject)"]
+  G --> H["7. Scale<br/>X̂ = X̃ / 0.96926"]
+  H --> I["8. Quantize<br/>q = clip(round(X̂ / 0.069558) − 12, −128, 127)"]
+  I --> J["TinyEEGNet int8 on Ethos-U85<br/>(1,1,22,256) → 2 logits"]
+  J --> K["argmax, softmax conf,<br/>motion gate → JSON"]
+```
+
+Per 250 Hz sample $n$ (vector $\mathbf{x}[n] \in \mathbb{R}^{22}$, µV, channels in `channel_order`):
+
+1. **Decode.** $x_c[n] = \text{count}_c[n] \cdot 100/2048$ µV (the BCI IV 2a ADC step; lossless).
+2. **Common average reference.** $x^{\text{car}}_c[n] = x_c[n] - \frac{1}{22}\sum_{k=1}^{22} x_k[n]$. Removes the recording reference so the three training datasets and the board see the same montage.
+3. **Causal band-pass 7–30 Hz** (Butterworth order 4, designed at 250 Hz, four second-order sections $(b_0,b_1,b_2,1,a_1,a_2)$ from `sos`, direct form II transposed, per channel, state never reset):
+   $y[n] = b_0 u[n] + s_1[n-1]$, $\quad s_1[n] = b_1 u[n] - a_1 y[n] + s_2[n-1]$, $\quad s_2[n] = b_2 u[n] - a_2 y[n]$, applied section after section. Filtered in float64 on the M55; the reference is NumPy `sosfilt`.
+4. **Decimate.** Keep $y[n]$ only for even $n$ (counted from the first sample after RESET): $z[m] = y[2m]$, 125 Hz. The band-pass is the anti-alias filter. The cue index becomes $m_{\text{cue}} = \lfloor n_{\text{cue}}/2 \rfloor$.
+5. **Window.** $X \in \mathbb{R}^{22 \times 256}$ = samples $m_{\text{cue}}+62 \ldots m_{\text{cue}}+317$ (cue + 0.496 s to cue + 2.544 s). In free-run mode, the newest 256 samples every 32 samples.
+
+Per window:
+
+6. **Euclidean alignment** (Zanini et al. 2019): $\tilde X = A_s X$ with $A_s = \bar R_s^{-1/2}$, where $\bar R_s = \frac{1}{24}\sum_{t=1}^{24} X_t X_t^{\top}/256 + 10^{-3}\,\text{tr}(\cdot)/22 \cdot I$ is the mean covariance of the subject's 24 unlabeled calibration trials (session 2 trials 1–24), computed offline and stored for all 9 subjects in `ea_matrices`; the board selects $A_s$ by `SET_SUBJECT`. Whitens each subject's spatial covariance toward identity so one model serves every subject.
+7. **Scale.** $\hat X = \tilde X / 0.969264$ (`input_scale`, the std of the aligned training set), so the model input has unit variance.
+8. **Quantize.** $q = \text{clip}\big(\text{round}(\hat X / 0.0695584) + (-12),\, -128,\, 127\big)$ (`input_quant_scale`, `input_zero_point`, round half to even). The `.pte` takes float $(q + 12)\cdot 0.0695584$ and re-quantizes internally to exactly $q$; all conv/linear layers run int8 on the Ethos-U85.
+9. **Output.** Two logits $\ell_0$ (left), $\ell_1$ (right); class $= \arg\max \ell$; confidence $= \text{softmax}(\ell)_{\text{class}}$; if the IMU saw motion in the last 500 ms the class is reported as −1 (gated).
+
+Cost on the Cortex-M55 at 400 MHz: steps 1–4 about 250 cycles per sample (0.6 µs at 250 Hz); steps 6–8 about 100 k cycles per window (0.25 ms); inference 128 k NPU cycles (0.32 ms).
+
 ## Input
 
 UART4 (the board's stdio USART, SW4 → UART4, PRG USB), **921600 baud** 8N1. 250 Hz × 49 B × 10 bit = 122.5 kbit/s does not fit in 115200. Little endian.
