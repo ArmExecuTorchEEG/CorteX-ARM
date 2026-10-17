@@ -2,15 +2,13 @@
 
 # Edge_Deploy
 
-**Hackathon submission repo.** Motor-imagery EEG streamed in real time → Alif Ensemble E8 → Ethos-U85 inference → predicted hand, with IMU-based artifact gating. Judged release: tag `v1.0-submission`.
+**Hackathon submission.** Motor-imagery EEG in real time → Alif Ensemble E8 → Ethos-U85 inference → predicted hand, IMU artifact gate. Judged release: tag `v1.0-submission`.
 
 > Arm + ExecuTorch Edge AI Challenge · SFSU · Oct 17–18 2026 · Team ArmExecuTorchEEG
 
 ## What it does
 
-A stroke-rehab brain-computer interface. The user imagines moving the left or right hand; the board classifies which, in real time, on the NPU. If the board's accelerometer sees movement, the prediction is suppressed instead of trusting a motion-corrupted window.
-
-**No headset.** The team has no EEG hardware. The demo streams held-out BCI IV 2a trials (session 2, never seen in training) from the laptop at 250 Hz, sample by sample, over the same UART path a headset would use. The firmware cannot tell the difference, so a headset driver can be added later without touching the board. The IMU is on the board, so it measures board motion: in a wearable build the board sits on the head; in the demo we move the board to show the gate.
+Stroke-rehab BCI. User imagines left or right hand movement; board classifies it on the NPU, in real time. Board accelerometer sees motion → prediction suppressed. **No headset**: laptop replays held-out BCI IV 2a trials (session 2, never trained on) at 250 Hz, sample by sample, over the UART path a headset would use. Firmware cannot tell the difference; headset driver can come later, board untouched. IMU is on the board, so it measures board motion: wearable build puts board on head; demo moves board to show the gate.
 
 ## Architecture
 
@@ -19,7 +17,7 @@ A stroke-rehab brain-computer interface. The user imagines moving the left or ri
 <img src="docs/media/pipeline.svg" alt="Pipeline: BCI IV 2a replay and host bridge on the laptop, UART into the Alif E8, Cortex-M55 preprocessing, TinyEEGNet int8 on the Ethos-U85, IMU motion gate, LEDs and JSON out to the demo UI" width="900">
 </picture></p>
 
-One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s; 74.6 % int8 mean over 9 subjects and 3 seeds in Reproduce_Baselines) serves all nine BCI IV 2a subjects; `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. The previous model, `v0.3-distill`, has the same contract (shapes, params schema, UART) and still fetches with `./tools/fetch_model.sh v0.3-distill`. Block diagram, per-sample pipeline, memory map and timing budget: [`docs/architecture.md`](docs/architecture.md).
+One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s; 74.6 % int8 mean over 9 subjects × 3 seeds in Reproduce_Baselines) serves all nine subjects. `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. Previous model `v0.3-distill`: same contract, `./tools/fetch_model.sh v0.3-distill`. Block diagram, memory map, timing budget: [`docs/architecture.md`](docs/architecture.md).
 
 ### Workload placement
 
@@ -33,11 +31,9 @@ One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B,
 | IMU read + motion gate | Cortex-M55 | On-board ICM-42670-P over I3C, polled at 100 Hz |
 | Display, metrics | Laptop (`demo_ui.py`, `measure.py`) | Not scored; keeps board workload honest |
 
-**Replay mode** (`--source replay`) is the only EEG source: it feeds recorded BCI IV 2a trials through the UART path in real time. It is used for development and for the judged demo.
-
 ## Signal path: from raw samples to the model input
 
-Everything between the UART and the NPU is deterministic arithmetic from `firmware/model/params.json` (release `v0.5-distill`); `host/pipeline_ref.py` is the Python reference and the firmware matches it bit for bit (`make -C firmware/tests test`, FVP self-test). Code: `firmware/src/preprocess.cpp`.
+Deterministic arithmetic from `firmware/model/params.json` (`v0.5-distill`). Code `firmware/src/preprocess.cpp`; reference `host/pipeline_ref.py`, matched bit for bit (`make -C firmware/tests test`, FVP self-test).
 
 ```mermaid
 flowchart LR
@@ -53,23 +49,17 @@ flowchart LR
   J --> K["argmax, softmax conf,<br/>motion gate → JSON"]
 ```
 
-Per 250 Hz sample $n$ (vector $\mathbf{x}[n] \in \mathbb{R}^{22}$, µV, channels in `channel_order`):
+Per 250 Hz sample $n$ ($\mathbf{x}[n] \in \mathbb{R}^{22}$, µV, `channel_order`):
 
-1. **Decode.** $x_c[n] = \text{count}_c[n] \cdot 100/2048$ µV (the BCI IV 2a ADC step; lossless).
-2. **Common average reference.** $x^{\text{car}}_c[n] = x_c[n] - \frac{1}{22}\sum_{k=1}^{22} x_k[n]$. Removes the recording reference so the three training datasets and the board see the same montage.
-3. **Causal band-pass 7–30 Hz** (Butterworth order 4, designed at 250 Hz, four second-order sections $(b_0,b_1,b_2,1,a_1,a_2)$ from `sos`, direct form II transposed, per channel, state never reset):
-   $y[n] = b_0 u[n] + s_1[n-1]$, $\quad s_1[n] = b_1 u[n] - a_1 y[n] + s_2[n-1]$, $\quad s_2[n] = b_2 u[n] - a_2 y[n]$, applied section after section. Filtered in float64 on the M55; the reference is NumPy `sosfilt`.
-4. **Decimate.** Keep $y[n]$ only for even $n$ (counted from the first sample after RESET): $z[m] = y[2m]$, 125 Hz. The band-pass is the anti-alias filter. The cue index becomes $m_{\text{cue}} = \lfloor n_{\text{cue}}/2 \rfloor$.
-5. **Window.** $X \in \mathbb{R}^{22 \times 256}$ = samples $m_{\text{cue}}+62 \ldots m_{\text{cue}}+317$ (cue + 0.496 s to cue + 2.544 s). In free-run mode, the newest 256 samples every 32 samples.
-
-Per window:
-
-6. **Euclidean alignment** (Zanini et al. 2019): $\tilde X = A_s X$ with $A_s = \bar R_s^{-1/2}$, where $\bar R_s = \frac{1}{24}\sum_{t=1}^{24} X_t X_t^{\top}/256 + 10^{-3}\,\text{tr}(\cdot)/22 \cdot I$ is the mean covariance of the subject's 24 unlabeled calibration trials (session 2 trials 1–24), computed offline and stored for all 9 subjects in `ea_matrices`; the board selects $A_s$ by `SET_SUBJECT`. Whitens each subject's spatial covariance toward identity so one model serves every subject.
-7. **Scale.** $\hat X = \tilde X / 0.969264$ (`input_scale`, the std of the aligned training set), so the model input has unit variance.
-8. **Quantize.** $q = \text{clip}\big(\text{round}(\hat X / 0.0695584) + (-12),\, -128,\, 127\big)$ (`input_quant_scale`, `input_zero_point`, round half to even). The `.pte` takes float $(q + 12)\cdot 0.0695584$ and re-quantizes internally to exactly $q$; all conv/linear layers run int8 on the Ethos-U85.
-9. **Output.** Two logits $\ell_0$ (left), $\ell_1$ (right); class $= \arg\max \ell$; confidence $= \text{softmax}(\ell)_{\text{class}}$; if the IMU saw motion in the last 500 ms the class is reported as −1 (gated).
-
-As an algorithm (what `firmware/src/preprocess.cpp` and `host/pipeline_ref.py` implement):
+1. **Decode.** $x_c[n] = \text{count}_c[n] \cdot 100/2048$ µV. BCI IV 2a ADC step; lossless.
+2. **CAR.** $x^{\text{car}}_c[n] = x_c[n] - \frac{1}{22}\sum_{k=1}^{22} x_k[n]$. Removes recording reference; datasets and board share one montage.
+3. **Causal band-pass 7–30 Hz.** Butterworth order 4 at 250 Hz, four SOS $(b_0,b_1,b_2,1,a_1,a_2)$ from `sos`, DF2-T, per channel, state never reset, float64: $y[n] = b_0 u[n] + s_1[n-1]$, $\quad s_1[n] = b_1 u[n] - a_1 y[n] + s_2[n-1]$, $\quad s_2[n] = b_2 u[n] - a_2 y[n]$, section after section. Reference: NumPy `sosfilt`.
+4. **Decimate.** $z[m] = y[2m]$ (even $n$ from first sample after RESET), 125 Hz. Band-pass is the anti-alias filter. $m_{\text{cue}} = \lfloor n_{\text{cue}}/2 \rfloor$.
+5. **Window.** $X \in \mathbb{R}^{22 \times 256}$ = samples $m_{\text{cue}}+62 \ldots m_{\text{cue}}+317$ (cue + 0.496 s to cue + 2.544 s). Free run: newest 256 every 32 samples.
+6. **Euclidean alignment** (Zanini et al. 2019, per window). $\tilde X = A_s X$, $A_s = \bar R_s^{-1/2}$, $\bar R_s = \frac{1}{24}\sum_{t=1}^{24} X_t X_t^{\top}/256 + 10^{-3}\,\text{tr}(\cdot)/22 \cdot I$: mean covariance of subject's 24 unlabeled calibration trials (session 2 trials 1–24), offline, all 9 in `ea_matrices`, picked by `SET_SUBJECT`. Whitens spatial covariance toward identity; one model serves every subject.
+7. **Scale.** $\hat X = \tilde X / 0.969264$ (`input_scale`, std of aligned training set) → unit variance.
+8. **Quantize.** $q = \text{clip}\big(\text{round}(\hat X / 0.0695584) + (-12),\, -128,\, 127\big)$ (`input_quant_scale`, `input_zero_point`, round half to even). `.pte` takes float $(q + 12)\cdot 0.0695584$, re-quantizes to exactly $q$; all conv/linear int8 on Ethos-U85.
+9. **Output.** Logits $\ell_0$ (left), $\ell_1$ (right); class $= \arg\max \ell$; conf $= \text{softmax}(\ell)_{\text{class}}$; IMU motion in last 500 ms → class −1 (gated).
 
 ```
 state: z[ch][sec][2] = 0               # biquad state, 22 channels × 4 sections (float64)
@@ -103,25 +93,18 @@ infer_window():
     emit_json(t, seq, trial, subject, cls, raw_cls, conf, logits, lat_us, motion, label)
 ```
 
-Steps 2, 6 and 7 are linear spatial maps that commute with the network's first (temporal) convolution, so they can be folded into the spatial depthwise weights and shipped inside a per-subject `.pte`; steps 3–4 are a stateful per-sample IIR and stay on the CPU. The shipped build keeps steps 2–8 on the CPU for one shared `.pte`.
-
-Cost on the Cortex-M55 at 400 MHz: steps 1–4 about 250 cycles per sample (0.6 µs at 250 Hz); steps 6–8 about 100 k cycles per window (0.25 ms); inference 128 k NPU cycles (0.32 ms).
+Steps 2, 6, 7 are linear spatial maps; they commute with the first (temporal) conv, so could fold into spatial depthwise weights of a per-subject `.pte`. Steps 3–4: stateful per-sample IIR, stay on CPU. Shipped build keeps 2–8 on CPU, one shared `.pte`. Cost at 400 MHz: steps 1–4 ≈ 250 cycles/sample (0.6 µs); 6–8 ≈ 100 k cycles/window (0.25 ms); inference 128 k NPU cycles (0.32 ms).
 
 ## Input
 
-UART4 (the board's stdio USART, SW4 → UART4, PRG USB), **921600 baud** 8N1. 250 Hz × 49 B × 10 bit = 122.5 kbit/s does not fit in 115200. Little endian.
+UART4 (board stdio USART, SW4 → UART4, PRG USB), **921600 baud** 8N1, little endian. 250 Hz × 49 B × 10 bit = 122.5 kbit/s: too much for 115200.
 
 | Frame | Bytes | Meaning |
 |---|---|---|
 | Data | `0xAA 0x55, uint8 n_ch (22), uint16 seq, int16[n_ch]` | One 250 Hz sample. Value = µV × 20.48 (the native BCI IV 2a step 100/2048 µV, so lossless; range ±1600 µV). The firmware decodes µV = count × 0.048828125. Channels in `channel_order` of `params.json`. `seq` +1 per sample, wraps at 65536 |
 | Control | `0xAA 0x56, uint8 kind, uint8 arg, uint16 seq` | kind 1 `SET_SUBJECT` (arg 1–9, required before the first cue); 2 `CUE` (arg = true label 0 left, 1 right, 255 unknown; the cue sample is the data frame with this `seq`, sent right after); 3 `RESET` (filter state, counters, ring buffer, pending cues); 4 `FREE_RUN` (arg 0/1) |
 
-A session is `RESET`, `SET_SUBJECT`, then a continuous stream from `--lead-in` (10 s) before the first replayed cue, with no `seq` gaps. The replay data are `host/data/A0{s}_session2.npz` (git-ignored), written once by `host/export_replay.py`.
-
-| Source | Into the board |
-|---|---|
-| EEG: `bridge.py --source replay --subject 3 --session 2` | Frames above, paced at 250 Hz |
-| IMU: on-board ICM-42670-P | Accel, ±4 g at 100 Hz ODR (own I3C driver in `firmware/src/imu.cpp`, every transfer bounded to 5 ms), polled at 100 Hz |
+Session: `RESET`, `SET_SUBJECT`, then continuous stream from `--lead-in` (10 s) before first cue, no `seq` gaps. Replay data `host/data/A0{s}_session2.npz` (git-ignored), written once by `host/export_replay.py`. IMU: on-board ICM-42670-P, accel ±4 g, 100 Hz ODR, polled at 100 Hz, own I3C driver `firmware/src/imu.cpp`, each transfer bounded to 5 ms.
 
 ## Output
 
@@ -134,26 +117,13 @@ A session is `RESET`, `SET_SUBJECT`, then a continuous stream from `--lead-in` (
 | `results/board_metrics.md` | Accuracy, agreement, `lat_us` mean/p50/p95/max, gated count (`host/measure.py`) |
 | `results/replay_accuracy.md` | Host-side ground truth for all 9 subjects: offline int8, sim replay, expected board output |
 
-One inference per cue, when the 125 Hz window `[cue_125 + 62, cue_125 + 318)` is complete (window end = cue + 2.544 s; `cue_125 = n_250 // 2`). With `FREE_RUN 1` also one every 256 ms on the newest window (`"trial":-1`). `seq` is the last sample of the window, `trial` the cue index since `RESET`. `raw_cls` = argmax(logits), `conf` = its softmax probability, `cls` = −1 when `motion` = 1, else `raw_cls`. `lat_us` runs from the last UART byte of the window's last sample (stamped in the UART ISR) to just before the JSON line is formatted; it excludes formatting and queueing (a few µs) and is chunk-granular (up to ~90 µs). `label` echoes the `CUE` arg.
+One inference per cue, when window `[cue_125 + 62, cue_125 + 318)` completes (cue + 2.544 s; `cue_125 = n_250 // 2`). `FREE_RUN 1`: also one every 256 ms on newest window (`"trial":-1`). `seq` = last sample of window; `trial` = cue index since `RESET`; `raw_cls` = argmax(logits); `conf` = its softmax; `cls` = −1 if `motion` = 1, else `raw_cls`; `label` echoes `CUE` arg. `lat_us`: last UART byte of window's last sample (stamped in UART ISR) → just before JSON formatting; excludes formatting and queueing (few µs); chunk-granular (up to ~90 µs).
 
-Motion gate: `motion` = 1 if, within the 500 ms before the inference, `max | |a| − 1 g | > 0.25 g` or any axis changed by more than 0.25 g between consecutive samples (`firmware/src/motion_config.h`).
-
-Only `bridge.py` opens the serial port. It republishes every board line, plus its own `{"event":"cue"}` and other records, as UDP datagrams to `127.0.0.1:5555`; `demo_ui.py` and `measure.py` listen there.
-
-## Expectations
-
-| Metric | Target |
-|---|---|
-| End-to-end latency, last UART byte of a window in → JSON line queued | < 50 ms (budget ≈ 1 ms, `docs/architecture.md`) |
-| NPU inference | < 10 ms (128 k NPU cycles ≈ 0.32 ms at 400 MHz, FVP) |
-| Preprocessing on board | int8 windows equal `host/pipeline_ref.py` bit for bit (`make -C firmware/tests test`, FVP self-test) |
-| Replay accuracy | With the ×20.48 encoding the reference equals the offline int8 predictions on 1080/1080 trials (`results/replay_accuracy.md`); mean 74.4 % (shipped seed 0), A03 99.2 %, A08 94.2 %. Board argmax must match `host/reference/expected_board_predictions.json` |
-| Motion gate | Red LED within 100 ms of shaking the board; no false gate while still |
-| Uptime | 30 min demo loop without reset |
+Motion gate: `motion` = 1 if, in the 500 ms before inference, `max | |a| − 1 g | > 0.25 g` or any axis changed > 0.25 g between consecutive samples (`firmware/src/motion_config.h`). Only `bridge.py` opens the serial port; it republishes every board line plus its own `{"event":"cue"}` records as UDP to `127.0.0.1:5555`, where `demo_ui.py` and `measure.py` listen.
 
 ## Steps
 
-Clone and fetch the model bundle (needs `gh` with read access to the org):
+Clone, fetch model bundle (needs `gh` with org read access):
 
 ```bash
 git clone https://github.com/ArmExecuTorchEEG/Edge_Deploy && cd Edge_Deploy
@@ -162,11 +132,11 @@ git clone https://github.com/ArmExecuTorchEEG/Edge_Deploy && cd Edge_Deploy
 python3 tools/gen_params_h.py --check        # firmware/src/params_gen.h matches params.json
 ```
 
-The AI layer (`firmware/ai_layer/model_pte.c`, the `.pte` as a C array) is committed, so a build needs only the CMSIS toolchain: VS Code + Keil Studio Pack, CMSIS-Toolbox 2.15, ExecuTorch 1.5.1. From the command line, activate it first in `firmware/` with `source ~/.vcpkg/vcpkg-init && vcpkg-shell activate` (the init script defines `vcpkg-shell`, not `vcpkg`).
+AI layer (`firmware/ai_layer/model_pte.c`, `.pte` as C array) is committed; build needs only the CMSIS toolchain: VS Code + Keil Studio Pack, CMSIS-Toolbox 2.15, ExecuTorch 1.5.1. Command line: first run `source ~/.vcpkg/vcpkg-init && vcpkg-shell activate` in `firmware/` (init script defines `vcpkg-shell`, not `vcpkg`).
 
 ### A0. Prove the pipeline on the FVP (no board)
 
-The `SelfTest` build replays an embedded A03 stream (5 trials, 13,381 frames) through the real parser, preprocessing, Ethos-U85 and JSON path:
+`SelfTest` build replays embedded A03 stream (5 trials, 13,381 frames) through real parser, preprocessing, Ethos-U85 and JSON path:
 
 ```bash
 cbuild firmware/edge_eeg.csolution.yml --context edge_eeg.SelfTest+SSE-320-U85 --packs
@@ -176,20 +146,20 @@ cd firmware && docker run --rm -i --init --user $(id -u) --mount "type=bind,src=
   -a out/edge_eeg/SSE-320-U85/SelfTest/edge_eeg.axf
 ```
 
-Expected: `Test_result: PASS`, 0 of 28,160 int8 elements differ. Recorded run: [`results/fvp_selftest.md`](results/fvp_selftest.md). On macOS the FVP runs in Docker (colima or Docker Desktop) with a Keil MDK Community licence.
+Expect `Test_result: PASS`, 0 of 28,160 int8 elements differ. Recorded run: [`results/fvp_selftest.md`](results/fvp_selftest.md). macOS: FVP in Docker (colima or Docker Desktop), Keil MDK Community licence.
 
 ### A. Build and flash (board)
 
 ```bash
 cbuild firmware/edge_eeg.csolution.yml --active DevKit-E8 --packs
 ```
-or in VS Code: CMSIS view on `firmware/edge_eeg.csolution.yml` > Manage Solution > target-type **DevKit-E8** > Build.
+Or VS Code: CMSIS view on `firmware/edge_eeg.csolution.yml` > Manage Solution > target-type **DevKit-E8** > Build.
 
-1. Tools: Alif SETOOLS ≥ 1.110, SEGGER J-Link ≥ 8.42 (`firmware/board/DevKit-E8/README.md`).
+1. Tools: Alif SETOOLS ≥ 1.110, SEGGER J-Link ≥ 8.42 ([`firmware/board/DevKit-E8/README.md`](firmware/board/DevKit-E8/README.md)).
 2. Board: USB-C on **PRG USB**, jumpers JP5 1-2, JP7 3-4. SW4 → **SEUART**.
 3. First time only: Terminal > Run Task > *Alif: Install M55_HP debug stubs*.
 4. SW4 → **UART4**. CMSIS view > Run.
-5. Serial console at **921600** shows `READY n_ch=22 model=tinyeegnet_int8 pte_bytes=11456 fs=250 fs_model=125 win=256 baud=921600`, then `# imu …`. Close the console before starting the bridge.
+5. Serial console at **921600** shows the `READY …` boot line ([Output](#output)), then `# imu …`. Close console before starting bridge.
 
 ### B. Demo run (replay)
 
@@ -200,7 +170,7 @@ python host/demo_ui.py --listen 5555                 # terminal 1 (--headless fo
 python host/bridge.py --source replay --subject 3 --session 2 --board /dev/tty.usbmodemXXXX   # terminal 2
 python host/bridge.py --source replay --subject 3 --session 2 --board sim                    # no board: in-process reference
 ```
-Default trials 24–143 (0-based), 10 s lead-in, `--free-run` for free-run mode. The full judged run, with fallbacks, is [`docs/demo_script.md`](docs/demo_script.md).
+Defaults: trials 24–143 (0-based), 10 s lead-in; `--free-run` for free-run mode. Full judged run with fallbacks: [`docs/demo_script.md`](docs/demo_script.md).
 
 ### C. Verify numbers
 
@@ -214,27 +184,19 @@ python -m pytest host/tests -q                       # host tests (Reproduce_Bas
 ## Layout
 
 ```
-firmware/
-  edge_eeg.csolution.yml, edge_eeg.cproject.yml   targets SSE-320-U85 (FVP) and DevKit-E8; build types Debug and SelfTest
-  src/        main, app (cue bookkeeping, gap fill, free run), uart_rx (frame parser), preprocess (CAR, SOS, decimate, EA, quantize),
-              infer (ExecuTorch), imu, motion_gate + motion_config.h, leds, json_out, clock, selftest,
-              params_gen.h (generated by tools/gen_params_h.py from model/params.json)
-  board/      DevKit-E8/ and Corstone-320/ board layers (UART4 stdio at 921600, I3C IMU, LEDs, NPU)
-  ai_layer/   generated: the .pte as a C array (model_pte.c)
-  model/      fetched: params.json (committed), .pte, test_vectors.npz, float checkpoint (ignored)
-  tests/      preprocess_test.cpp + Makefile; generated/ written by host/make_vectors.py
-host/
-  bridge.py         replay -> UART frames at 250 Hz, republish board output over UDP 5555
-  demo_ui.py        live window (or --headless): EEG trace, class, confidence, latency, gate
-  measure.py        metrics from the UDP feed or a bridge --log JSONL
-  replay_accuracy.py, pipeline_ref.py (bit-exact reference), int8_oracle.py, make_vectors.py, export_replay.py, common.py, listen.py
-  drivers/          replay.py, sim_board.py (--board sim)
-  reference/        offline_int8_predictions.json, expected_board_predictions.json
-  tests/            pytest
-  data/             A0{s}_session2.npz replay streams (git-ignored)
-tools/      fetch_model.sh, gen_params_h.py
-results/    fvp_selftest.md (+ .log), replay_accuracy.md, board_metrics.md (once measured)
-docs/       architecture.md, demo_script.md, banner.png, media/ (pipeline SVGs)
+firmware/  edge_eeg.csolution.yml, edge_eeg.cproject.yml: targets SSE-320-U85 (FVP), DevKit-E8; build types Debug, SelfTest
+  src/       main, app (cues, gap fill, free run), uart_rx, preprocess (CAR, SOS, decimate, EA, quantize), infer (ExecuTorch),
+             imu, motion_gate + motion_config.h, leds, json_out, clock, selftest, params_gen.h (from tools/gen_params_h.py)
+  board/     DevKit-E8/, Corstone-320/ layers (UART4 stdio 921600, I3C IMU, LEDs, NPU)
+  ai_layer/  generated: .pte as C array (model_pte.c)     model/  fetched: params.json (committed), .pte, test_vectors.npz, checkpoint (ignored)
+  tests/     preprocess_test.cpp + Makefile; generated/ by host/make_vectors.py
+host/      bridge.py (replay -> UART 250 Hz, UDP 5555), demo_ui.py (live or --headless), measure.py (UDP feed or bridge --log JSONL),
+           replay_accuracy.py, pipeline_ref.py (bit-exact reference), int8_oracle.py, make_vectors.py, export_replay.py, common.py, listen.py
+  drivers/   replay.py, sim_board.py (--board sim)       reference/  offline_int8_predictions.json, expected_board_predictions.json
+  tests/     pytest                                       data/       A0{s}_session2.npz replay streams (git-ignored)
+tools/     fetch_model.sh, gen_params_h.py
+results/   fvp_selftest.md (+ .log), replay_accuracy.md, board_metrics.md (once measured)
+docs/      architecture.md, demo_script.md, banner.png, media/ (pipeline SVGs)
 ```
 
 ## Submission checklist (rules)
@@ -243,11 +205,11 @@ docs/       architecture.md, demo_script.md, banner.png, media/ (pipeline SVGs)
 |---|---|
 | Public repo | this |
 | Fixed release | tag `v1.0-submission`, with `.pte` and firmware `.axf` as assets |
-| Build, deploy, run instructions | Steps A–C above |
-| Architecture and components | this README + `docs/architecture.md` |
-| Workload placement | table above |
-| Performance measurements | `results/board_metrics.md` |
-| Live demo on Alif E8 | `docs/demo_script.md`; video backup in `docs/video/` |
+| Build, deploy, run instructions | Steps A0–C above |
+| Architecture and components | this README + [`docs/architecture.md`](docs/architecture.md) |
+| Workload placement | [table above](#workload-placement) |
+| Performance measurements | `results/board_metrics.md` (once measured) |
+| Live demo on Alif E8 | [`docs/demo_script.md`](docs/demo_script.md); video backup in `docs/video/` (to add) |
 | English | yes |
 
 ## Judging map
@@ -268,30 +230,29 @@ docs/       architecture.md, demo_script.md, banner.png, media/ (pipeline SVGs)
 |---|---|
 | Moamen Soliman | Firmware DSP, UART path, IMU gate |
 | Jihyung Ku | Model, replay harness |
-| | |
 
 ## License
 
-MIT. Starter code © Arm Limited, Apache-2.0 (SPDX headers in those files); ExecuTorch runtime license in `firmware/src/LICENSE-ExecuTorch`.
+MIT. Starter code © Arm Limited, Apache-2.0 (SPDX headers in those files); ExecuTorch runtime license in [`firmware/src/LICENSE-ExecuTorch`](firmware/src/LICENSE-ExecuTorch).
 
 ## Status
 
-| Step | Done |
-|---|---|
-| Builds for DevKit-E8 | x |
-| FVP self-test PASS (DSP + NPU chain, 5 trials) | x |
-| Replay mode end-to-end on board | |
-| Streamed predictions match offline int8 | |
-| IMU gate | |
-| Demo UI | |
-| Metrics recorded | |
-| Demo rehearsed twice, video recorded | |
-| Tag `v1.0-submission` | |
+| Step / metric | Target | Done |
+|---|---|---|
+| Builds for DevKit-E8 | | x |
+| FVP self-test (DSP + NPU chain, 5 trials) | `PASS`; int8 windows = `host/pipeline_ref.py` bit for bit | x |
+| Replay mode end-to-end on board | End-to-end latency (last UART byte of window → JSON queued) < 50 ms; budget ≈ 1 ms ([`docs/architecture.md`](docs/architecture.md)) | |
+| Streamed predictions match offline int8 | Board argmax = [`host/reference/expected_board_predictions.json`](host/reference/expected_board_predictions.json). Reference = offline int8 on 1080/1080 trials with ×20.48 encoding ([`results/replay_accuracy.md`](results/replay_accuracy.md)); mean 74.4 % (shipped seed 0), A03 99.2 %, A08 94.2 % | |
+| IMU gate | Red LED within 100 ms of shaking board; no false gate while still | |
+| Demo UI | | |
+| Metrics recorded | NPU inference < 10 ms (128 k NPU cycles ≈ 0.32 ms at 400 MHz, FVP) | |
+| Demo rehearsed twice, video recorded | 30 min demo loop without reset | |
+| Tag `v1.0-submission` | | |
 
 ### Known untested (no board yet)
 
-- UART4 at 921600 in interrupt mode, and whether the PRG USB serial bridge carries 921600.
-- ICM-42670-P bring-up over I3C (`firmware/src/imu.cpp`: RSTDAA, SETDASA, WHO_AM_I, ±4 g 100 Hz; each transfer bounded to 5 ms; on failure the board prints `# imu init failed: ...` and streams with `"imu":0`) and its readings.
-- RGB LED pins and polarity (driven high = on, as in the pack's Blinky).
+- UART4 at 921600 in interrupt mode; whether PRG USB serial bridge carries 921600.
+- ICM-42670-P bring-up over I3C (`firmware/src/imu.cpp`: RSTDAA, SETDASA, WHO_AM_I, ±4 g 100 Hz; each transfer bounded to 5 ms; on failure board prints `# imu init failed: ...`, streams with `"imu":0`) and its readings.
+- RGB LED pins and polarity (driven high = on, as in pack's Blinky).
 - Ethos-U PMU counters on the E8.
 - All real timing: `lat_us`, cycles at 400 MHz.
