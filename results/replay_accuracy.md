@@ -1,6 +1,6 @@
 # Replay accuracy (host side)
 
-Generated 2026-10-17 by `host/replay_accuracy.py`. Model `tinyeegnet_int8.pte` (v0.3-distill, wide32 seed 0), one `.pte` for all subjects, EA matrix per subject. BCI IV 2a session 2, test trials 25–144 (0-based 24–143, 120 per subject), streamed as the bridge streams them: int16 µV × 20.48, 250 Hz, 10 s lead-in, continuous.
+Generated 2026-10-17 by `host/replay_accuracy.py`. Model `tinyeegnet_int8.pte` (v0.5-distill, wide32_ft seed 0), one `.pte` for all subjects, EA matrix per subject. BCI IV 2a session 2, test trials 25–144 (0-based 24–143, 120 per subject), streamed as the bridge streams them: int16 µV × 20.48, 250 Hz, 10 s lead-in, continuous.
 
 | Column | Meaning |
 |---|---|
@@ -13,22 +13,22 @@ Generated 2026-10-17 by `host/replay_accuracy.py`. Model `tinyeegnet_int8.pte` (
 | Subject | Offline int8 % | Sim replay % | Board target % | Agree | Window diff % (max) |
 |---|---:|---:|---:|---:|---:|
 | A01 | 87.5 | 87.5 (120) | 87.5 | 120 | 0.0 (0) |
-| A02 | 61.7 | 61.7 (120) | 61.7 | 120 | 0.0 (0) |
+| A02 | 62.5 | 62.5 (120) | 62.5 | 120 | 0.0 (0) |
 | A03 | 99.2 | 99.2 (120) | 99.2 | 120 | 0.0 (0) |
-| A04 | 72.5 | 72.5 (120) | 72.5 | 120 | 0.0 (0) |
-| A05 | 67.5 | 67.5 (120) | 67.5 | 120 | 0.0 (0) |
-| A06 | 58.3 | 58.3 (120) | 58.3 | 120 | 0.0 (0) |
-| A07 | 62.5 | 62.5 (120) | 62.5 | 120 | 0.0 (0) |
+| A04 | 74.2 | 74.2 (120) | 74.2 | 120 | 0.0 (0) |
+| A05 | 70.8 | 70.8 (120) | 70.8 | 120 | 0.0 (0) |
+| A06 | 56.7 | 56.7 (120) | 56.7 | 120 | 0.0 (0) |
+| A07 | 65.8 | 65.8 (120) | 65.8 | 120 | 0.0 (0) |
 | A08 | 94.2 | 94.2 (120) | 94.2 | 120 | 0.0 (0) |
-| A09 | 56.7 | 56.7 (120) | 56.7 | 120 | 0.0 (0) |
-| **Mean** | **73.3** | **73.3** | **73.3** | 1080/1080 | 0.0 |
+| A09 | 59.2 | 59.2 (120) | 59.2 | 120 | 0.0 (0) |
+| **Mean** | **74.4** | **74.4** | **74.4** | 1080/1080 | 0.0 |
 
 Board-target confusion matrix, all subjects summed (rows true, columns predicted):
 
 | | pred left | pred right |
 |---|---:|---:|
-| true left | 430 | 110 |
-| true right | 178 | 362 |
+| true left | 431 | 109 |
+| true right | 167 | 373 |
 
 Notes:
 

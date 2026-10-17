@@ -19,7 +19,7 @@ A stroke-rehab brain-computer interface. The user imagines moving the left or ri
 <img src="docs/media/pipeline.svg" alt="Pipeline: BCI IV 2a replay and host bridge on the laptop, UART into the Alif E8, Cortex-M55 preprocessing, TinyEEGNet int8 on the Ethos-U85, IMU motion gate, LEDs and JSON out to the demo UI" width="900">
 </picture></p>
 
-One `.pte` (TinyEEGNet-wide student, release `v0.3-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s) serves all nine BCI IV 2a subjects; `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. Block diagram, per-sample pipeline, memory map and timing budget: [`docs/architecture.md`](docs/architecture.md).
+One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s; 74.6 % int8 mean over 9 subjects and 3 seeds in Reproduce_Baselines) serves all nine BCI IV 2a subjects; `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. The previous model, `v0.3-distill`, has the same contract (shapes, params schema, UART) and still fetches with `./tools/fetch_model.sh v0.3-distill`. Block diagram, per-sample pipeline, memory map and timing budget: [`docs/architecture.md`](docs/architecture.md).
 
 ### Workload placement
 
@@ -75,7 +75,7 @@ Only `bridge.py` opens the serial port. It republishes every board line, plus it
 | End-to-end latency, last UART byte of a window in → JSON line queued | < 50 ms (budget ≈ 1 ms, `docs/architecture.md`) |
 | NPU inference | < 10 ms (128 k NPU cycles ≈ 0.32 ms at 400 MHz, FVP) |
 | Preprocessing on board | int8 windows equal `host/pipeline_ref.py` bit for bit (`make -C firmware/tests test`, FVP self-test) |
-| Replay accuracy | With the ×20.48 encoding the reference equals the offline int8 predictions on 1080/1080 trials (`results/replay_accuracy.md`); mean 73.3 %, A03 99.2 %, A08 94.2 %. Board argmax must match `host/reference/expected_board_predictions.json` |
+| Replay accuracy | With the ×20.48 encoding the reference equals the offline int8 predictions on 1080/1080 trials (`results/replay_accuracy.md`); mean 74.4 % (shipped seed 0), A03 99.2 %, A08 94.2 %. Board argmax must match `host/reference/expected_board_predictions.json` |
 | Motion gate | Red LED within 100 ms of shaking the board; no false gate while still |
 | Uptime | 30 min demo loop without reset |
 
@@ -85,7 +85,8 @@ Clone and fetch the model bundle (needs `gh` with read access to the org):
 
 ```bash
 git clone https://github.com/ArmExecuTorchEEG/Edge_Deploy && cd Edge_Deploy
-./tools/fetch_model.sh                       # default v0.3-distill from Reproduce_Baselines; checks sha256, writes firmware/model/params.json
+./tools/fetch_model.sh                       # default v0.5-distill from Reproduce_Baselines; checks sha256, writes firmware/model/params.json
+# ./tools/fetch_model.sh --local ../Reproduce_Baselines/artifacts/v4   # same bundle from a local checkout (no sha256 check)
 python3 tools/gen_params_h.py --check        # firmware/src/params_gen.h matches params.json
 ```
 

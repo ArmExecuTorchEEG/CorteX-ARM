@@ -4,7 +4,7 @@
  * Subject A03, session 2, recording samples [124676, 138057) = 13381 samples
  * (53.52 s at 250 Hz), 10 s lead-in (start moved back to an even recording sample).
  * Trials (0-based session-2 L/R trial index): 33, 34, 35, 36, 37  (1-based: 34, 35, 36, 37, 38).
- * params.json sha256 87af6459137ffb9954c9c627c5bb7c887bc319db1960aa4e0b06a413afde397e
+ * params.json sha256 3d34f6326c67441e9e6b636454436c63951e81f6e221da977723700f1c8152f7
  *
  * STREAM[i][c]: int16 microvolts x PV_COUNTS_PER_UV (20.48), channel order = params.json channel_order; STREAM[0] is the
  *   first data frame after RESET (n_250 = 0). This is exactly what bridge.py sends.

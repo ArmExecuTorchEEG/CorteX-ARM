@@ -18,9 +18,9 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import RB_DIR, load_params  # noqa: E402
+from common import RB_ARTIFACTS, RB_DIR, load_params  # noqa: E402
 
-ARTIFACTS = RB_DIR / "artifacts" / "v2"
+ARTIFACTS = RB_ARTIFACTS
 
 
 class Int8Oracle:

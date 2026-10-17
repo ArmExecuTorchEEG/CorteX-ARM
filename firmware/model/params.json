@@ -5414,7 +5414,7 @@
  },
  "output": "logits (1, 2); argmax = class, no softmax in the model",
  "student": {
-  "name": "wide32",
+  "name": "wide32_ft",
   "F1": 16,
   "D": 2,
   "F2": 32,

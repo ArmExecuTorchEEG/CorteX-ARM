@@ -4,9 +4,10 @@ Defaults resolve in this order so the tools work both in a full workspace checko
 a standalone clone of Edge_Deploy:
 
 * params: ``--params`` > ``firmware/model/params.json`` (fetched with the model) >
-  ``../Reproduce_Baselines/artifacts/v2/preprocess_params.json``.
+  ``../Reproduce_Baselines/artifacts/v4/preprocess_params.json``.
 * offline predictions: ``host/reference/offline_int8_predictions.json`` (committed, written by
-  ``make_vectors.py`` from ``Reproduce_Baselines/runs/v2/student_wide32_seed0/int8_predictions.npz``).
+  ``make_vectors.py`` from ``Reproduce_Baselines/runs/v4soft/student_wide32_ft_seed0/int8_predictions.npz``,
+  override with ``make_vectors.py --predictions``).
 """
 
 from __future__ import annotations
@@ -24,9 +25,14 @@ RB_DIR = WORKSPACE_DIR / "Reproduce_Baselines"
 DATA_DIR = HOST_DIR / "data"
 REFERENCE_DIR = HOST_DIR / "reference"
 OFFLINE_PRED_JSON = REFERENCE_DIR / "offline_int8_predictions.json"
-RB_PARAMS = RB_DIR / "artifacts" / "v2" / "preprocess_params.json"
-RB_TEST_VECTORS = RB_DIR / "artifacts" / "v2" / "test_vectors.npz"
-RB_INT8_PREDICTIONS = RB_DIR / "runs" / "v2" / "student_wide32_seed0" / "int8_predictions.npz"
+# Shipped model: Reproduce_Baselines v0.5-distill (local bundle artifacts/v4; v0.3-distill = artifacts/v2
+# is the previous model, same contract).
+MODEL_TAG = "v0.5-distill"
+MODEL_DESC = "wide32_ft seed 0"
+RB_ARTIFACTS = RB_DIR / "artifacts" / "v4"
+RB_PARAMS = RB_ARTIFACTS / "preprocess_params.json"
+RB_TEST_VECTORS = RB_ARTIFACTS / "test_vectors.npz"
+RB_INT8_PREDICTIONS = RB_DIR / "runs" / "v4soft" / "student_wide32_ft_seed0" / "int8_predictions.npz"
 PARAM_CANDIDATES = (REPO_DIR / "firmware" / "model" / "params.json", RB_PARAMS)
 
 # Session 2 of every 2a subject: trials 0..23 (0-based) calibrate EA, 24..143 are test trials.

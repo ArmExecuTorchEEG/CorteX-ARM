@@ -21,7 +21,7 @@ def params():
 @pytest.fixture(scope="module")
 def tv():
     if not RB_TEST_VECTORS.exists():
-        pytest.skip("Reproduce_Baselines/artifacts/v2/test_vectors.npz not present")
+        pytest.skip("Reproduce_Baselines/artifacts/v4/test_vectors.npz not present")
     return np.load(RB_TEST_VECTORS)
 
 

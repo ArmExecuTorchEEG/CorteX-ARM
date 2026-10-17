@@ -5,7 +5,8 @@
     python tools/gen_params_h.py --check              # exit 1 if the header is stale
 
 params.json is the exact copy of Reproduce_Baselines' preprocess_params.json
-(release v0.3-distill). The header carries everything the board pipeline needs:
+(release v0.5-distill; v0.3-distill, the previous model, has the same schema).
+The header carries everything the board pipeline needs:
 the band-pass SOS, the 9 per-subject EA matrices, the input scales and the
 int8 quantisation of the model input. Values are written with 17 significant
 digits (round-trip exact for float64); the firmware decides the precision it

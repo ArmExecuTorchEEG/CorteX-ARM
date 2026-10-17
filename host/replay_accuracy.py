@@ -26,7 +26,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bridge  # noqa: E402
-from common import REPO_DIR, load_offline_predictions, load_params  # noqa: E402
+from common import MODEL_DESC, MODEL_TAG, REPO_DIR, load_offline_predictions, load_params  # noqa: E402
 from drivers.replay import default_trials, load_replay, plan_session  # noqa: E402
 from common import parse_trials  # noqa: E402
 from pipeline_ref import PipelineRef  # noqa: E402
@@ -123,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         "# Replay accuracy (host side)",
         "",
         f"Generated {dt.date.today().isoformat()} by `host/replay_accuracy.py`. Model `tinyeegnet_int8.pte` "
-        "(v0.3-distill, wide32 seed 0), one `.pte` for all subjects, EA matrix per subject. "
+        f"({MODEL_TAG}, {MODEL_DESC}), one `.pte` for all subjects, EA matrix per subject. "
         "BCI IV 2a session 2, test trials 25–144 (0-based 24–143, 120 per subject), streamed as the "
         f"bridge streams them: int16 µV × {uv_scale:g}, 250 Hz, 10 s lead-in, continuous.",
         "",

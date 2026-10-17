@@ -23,14 +23,15 @@ Project overview and repo map: https://github.com/ArmExecuTorchEEG
 - Control frame `0xAA 0x56, uint8 kind, uint8 arg, uint16 seq`: 1 SET_SUBJECT (1–9), 2 CUE (label 0/1/255, cue = data frame with this `seq`), 3 RESET, 4 FREE_RUN (0/1).
 - Boot line `READY n_ch=22 model=tinyeegnet_int8 pte_bytes=11456 fs=250 fs_model=125 win=256 baud=921600`. Output JSON line, in this order: `t, seq, trial, subject, cls, raw_cls, conf, logits, lat_us, motion, label` (+ `imu:0` when the IMU is down). `#` lines are diagnostics.
 - Host side: only `bridge.py` opens the serial port; it republishes over UDP `127.0.0.1:5555`.
-- `firmware/model/params.json` = `preprocess_params.json` of Reproduce_Baselines `v0.3-distill` (sha256 `87af6459…`); `firmware/src/params_gen.h` is generated from it.
+- `firmware/model/params.json` = `preprocess_params.json` of Reproduce_Baselines `v0.5-distill` (sha256 `3d34f632…`; the previous model `v0.3-distill`, `87af6459…`, has the same contract); `firmware/src/params_gen.h` is generated from it.
 - Board int8 windows = `host/pipeline_ref.py`, bit for bit.
 - Release tag `v1.0-submission` = what judges see.
 
 ## Commands
 Python: `Reproduce_Baselines/.venv/bin/python` has every dependency. `host/tests/conftest.py` sets `MOABB_DOWNLOAD_PROVIDER=upstream` and `MNE_DATA=~/mne_data`; set them yourself for `export_replay.py`, `make_vectors.py`, `replay_accuracy.py`.
 ```
-./tools/fetch_model.sh                                  # v0.3-distill -> firmware/model/, sha256 checked
+./tools/fetch_model.sh                                  # v0.5-distill -> firmware/model/, sha256 checked
+./tools/fetch_model.sh --local <bundle dir>             # local bundle (e.g. Reproduce_Baselines/artifacts/v4), no sha256 check
 python3 tools/gen_params_h.py [--check]                 # firmware/src/params_gen.h
 source ~/.vcpkg/vcpkg-init && (cd firmware && vcpkg-shell activate)   # toolchain; once per shell
 cbuild firmware/edge_eeg.csolution.yml --active DevKit-E8 --packs

@@ -3,8 +3,11 @@
 # file against the sha256 digest GitHub records for the release asset, and copy
 # preprocess_params.json to params.json (the firmware's copy, which must equal it).
 #
-#   ./tools/fetch_model.sh                 # v0.3-distill (the v2 model the firmware is built for)
-#   ./tools/fetch_model.sh v0.3-distill
+#   ./tools/fetch_model.sh                 # v0.5-distill (the v2-contract model the firmware is built for)
+#   ./tools/fetch_model.sh v0.3-distill    # the previous model (same contract)
+#   ./tools/fetch_model.sh --local <dir>   # copy a local bundle (e.g. Reproduce_Baselines/artifacts/v4)
+#                                          # instead of downloading; no release digest to check, so the
+#                                          # sha256 check is skipped and the local hashes are printed
 #
 # Then regenerate the parameter header if params.json changed:
 #   python tools/gen_params_h.py && git diff --stat firmware/src/params_gen.h
@@ -13,7 +16,6 @@
 # Emulator_Deploy/tools/fetch_model.sh.
 set -euo pipefail
 
-TAG="${1:-v0.3-distill}"
 REPO="ArmExecuTorchEEG/Reproduce_Baselines"
 ASSETS="tinyeegnet_int8.pte test_vectors.npz preprocess_params.json student.json tinyeegnet_float.pt"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,6 +27,28 @@ if command -v sha256sum >/dev/null 2>&1; then
 else
   sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
 fi
+
+if [ "${1:-}" = "--local" ]; then
+  SRC="${2:?usage: fetch_model.sh --local <bundle dir>}"
+  fail=0
+  for name in $ASSETS; do
+    if [ -f "$SRC/$name" ]; then
+      cp "$SRC/$name" "$DEST/$name"
+      echo "COPIED  $name  $(sha256 "$DEST/$name")"
+    else
+      echo "MISSING  $SRC/$name"
+      fail=1
+    fi
+  done
+  echo "NOTE: local bundle, no release digest: sha256 check skipped"
+  if [ "$fail" -eq 0 ]; then
+    cp "$DEST/preprocess_params.json" "$DEST/params.json"
+    echo "params.json = preprocess_params.json ($(sha256 "$DEST/params.json"))"
+  fi
+  exit "$fail"
+fi
+
+TAG="${1:-v0.5-distill}"
 
 patterns=()
 for name in $ASSETS; do
