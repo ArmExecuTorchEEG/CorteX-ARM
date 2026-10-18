@@ -3,6 +3,9 @@
 The board render (alif_e8_board_top.jpg, from Alif's DevKit-E8 layout image with the labels removed)
 is embedded as base64 so the SVG works inside a GitHub <img>. Glass callouts as in make_pipeline_svg.py.
 Run: python docs/media/make_board_svg.py docs/media
+
+GitHub serves SVGs with CSP default-src 'none', which blocks the embedded board image, so the README uses
+board.jpg / board-dark.jpg: the SVGs rendered at 2x in headless Chrome on #ffffff / #0d1117.
 """
 import base64
 import sys
