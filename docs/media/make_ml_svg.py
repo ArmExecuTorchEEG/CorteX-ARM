@@ -8,11 +8,12 @@ from pathlib import Path
 
 from make_pipeline_svg import THEMES, esc
 
-W, H = 1240, 500
-CW = 208
-COLS = [24, 270, 516, 762, 1008]
-ROW_A, CH_A = 74, 136
-ROW_B, CH_B = 304, 172
+W, H = 1120, 762
+CW = 235
+COLS = [24, 303, 582, 861]
+ROW_A, CH_A = 82, 170
+ROW_B1, CH_B1 = 352, 152
+ROW_B2, CH_B2 = 560, 170
 
 HUES = {"data": "6,182,212", "train": "124,92,255", "distill": "244,63,94",
         "deploy": "245,158,11", "test": "34,197,94", "a": "100,116,139", "b": "124,92,255"}
@@ -59,20 +60,20 @@ ICONS = {
 CARDS = [
     (0, ROW_A, CH_A, "data", "data", "DATASET", "DATA", "BCI IV 2a",
      ["subject 1, session 1", "115 train · 29 val trials"], 1),
-    (1, ROW_A, CH_A, "train", "train", "TRAIN", "TRAIN", "TinyEEGNet · 1,938 params",
-     ["one subject, labeled session 1", "cross-entropy, early stop on validation loss"], 2),
-    (3, ROW_A, CH_A, "deploy", "npu", "DEPLOY", "U85", "int8 · .pte 13,072 B",
-     ["ExecuTorch → Ethos-U85"], 1),
-    (4, ROW_A, CH_A, "test", "test", "TEST", "79.9 %", "subject 1, session 2",
+    (1, ROW_A, CH_A, "train", "train", "TRAIN", "", "TinyEEGNet",
+     ["1,938 params", "cross-entropy, early stop", "on validation loss"], 1),
+    (2, ROW_A, CH_A, "deploy", "npu", "DEPLOY", "U85", "int8 · 13,072 B",
+     ["ExecuTorch .pte", "on the Ethos-U85"], 1),
+    (3, ROW_A, CH_A, "test", "test", "TEST", "79.9 %", "subject 1, session 2",
      ["144 trials, float", "board int8 79.2 %, = FVP"], 1),
-    (0, ROW_B, CH_B, "data", "data", "DATASETS", "DATA", "Cho2017 + Lee2019",
-     ["72 subjects", "no BCI IV 2a labels used"], 1),
-    (1, ROW_B, CH_B, "train", "teachers", "TEACHERS", "STEP 1", "4-model ensemble", [], 1),
-    (2, ROW_B, CH_B, "distill", "distill", "DISTILL", "STEP 2", "TinyEEGNet-wide",
-     ["3,426 params", "learns the teachers'", "soft labels"], 1),
-    (3, ROW_B, CH_B, "deploy", "npu", "DEPLOY", "U85", "int8 · .pte 11,456 B",
-     ["ExecuTorch → Ethos-U85"], 1),
-    (4, ROW_B, CH_B, "test", "test", "TEST", "74.6 %", "all 9 BCI IV 2a",
+    (0, ROW_B1, CH_B1, "data", "data", "DATASETS", "DATA", "Cho2017 + Lee2019",
+     ["72 subjects", "no BCI IV 2a labels"], 1),
+    (1, ROW_B1, CH_B1, "train", "teachers", "TEACHERS", "STEP 1", "4-model ensemble", [], 3),
+    (1, ROW_B2, CH_B2, "distill", "distill", "DISTILL", "STEP 2", "TinyEEGNet-wide",
+     ["3,426 params, learns", "the teachers' soft labels"], 1),
+    (2, ROW_B2, CH_B2, "deploy", "npu", "DEPLOY", "U85", "int8 · 11,456 B",
+     ["ExecuTorch .pte", "on the Ethos-U85"], 1),
+    (3, ROW_B2, CH_B2, "test", "test", "TEST", "74.6 %", "all 9 BCI IV 2a",
      ["subjects, session 2", "1,080 trials, int8"], 1),
 ]
 
@@ -80,7 +81,7 @@ TEACHERS = ["EEGNet", "ShallowConvNet", "DeepConvNet", "Riemann"]
 
 PANELS = [
     (ROW_A, CH_A, "a", "A", "SUBJECT-SPECIFIC MODEL", "subject-specific TinyEEGNet, trained and tested on one person"),
-    (ROW_B, CH_B, "b", "B", "GENERIC MODEL", "four teachers distilled into one small student that serves every subject"),
+    (ROW_B1, ROW_B2 + CH_B2 - ROW_B1, "b", "B", "GENERIC MODEL", "four teachers distilled into one small student that serves every subject"),
 ]
 
 
@@ -98,38 +99,39 @@ def card(t, col, y, h, hue, icon, title, tag, tools, role, span):
     x = COLS[col]
     w = CW * span + (COLS[1] - COLS[0] - CW) * (span - 1)
     c = HUES[hue]
-    tag_w = 8 + 7.4 * len(tag)
+    tag_w = 12 + 8.6 * len(tag)
     p = [glass(t, hue, x, y, w, h, 16),
-         f'<g transform="translate({x + 16},{y + 16}) scale(1.1)" fill="none" stroke="{t["stroke"]}" '
+         f'<g transform="translate({x + 16},{y + 16}) scale(1.3)" fill="none" stroke="{t["stroke"]}" '
          f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
          f'{ICONS[icon].replace("{stroke}", t["stroke"])}</g>',
-         f'<text x="{x + 52}" y="{y + 36}" font-size="15" font-weight="700" letter-spacing="0.4" '
+         f'<text x="{x + 58}" y="{y + 40}" font-size="18" font-weight="700" letter-spacing="0.4" '
          f'fill="{t["title"]}">{esc(title)}</text>',
-         f'<rect x="{x + w - tag_w - 14}" y="{y + 19}" width="{tag_w}" height="22" rx="11" '
+         '' if not tag else f'<rect x="{x + w - tag_w - 14}" y="{y + 22}" width="{tag_w}" height="26" rx="13" '
          f'fill="rgba({c},{t["chip_a"]})" stroke="rgba({c},{t["edge_a"]})" stroke-width="1"/>',
-         f'<text x="{x + w - 14 - tag_w / 2}" y="{y + 34.5}" font-size="11" font-weight="700" letter-spacing="0.5" '
+         '' if not tag else f'<text x="{x + w - 14 - tag_w / 2}" y="{y + 40}" font-size="13" font-weight="700" letter-spacing="0.5" '
          f'text-anchor="middle" fill="{t["title"]}">{esc(tag)}</text>',
-         f'<text x="{x + 18}" y="{y + 72}" font-size="14" font-weight="600" fill="{t["tools"]}">{esc(tools)}</text>']
+         f'<text x="{x + 18}" y="{y + 82}" font-size="17" font-weight="600" fill="{t["tools"]}">{esc(tools)}</text>']
     for i, line in enumerate(role):
-        p.append(f'<text x="{x + 18}" y="{y + 96 + 18 * i}" font-size="12.5" fill="{t["role"]}">{esc(line)}</text>')
+        p.append(f'<text x="{x + 18}" y="{y + 110 + 21 * i}" font-size="15" fill="{t["role"]}">{esc(line)}</text>')
     return "".join(p)
 
 
 def teacher_chips(t, y):
-    """2x2 grid of teacher chips that light up one after another."""
-    x0, cw, chh, gap = COLS[1] + 14, 86, 30, 8
+    """Four teacher chips in one row, lighting up one after another."""
+    w = CW * 3 + (COLS[1] - COLS[0] - CW) * 2
+    gap = 14
+    cw, chh = (w - 36 - 3 * gap) / 4, 40
+    x0 = COLS[1] + 18
     c = HUES["train"]
     out = []
     for i, name in enumerate(TEACHERS):
-        cx = x0 + (i % 2) * (cw + gap)
-        cy = y + 88 + (i // 2) * (chh + gap)
-        begin = f"{i * 0.5}s"
-        out.append(f'<rect x="{cx}" y="{cy}" width="{cw}" height="{chh}" rx="9" fill="rgba({c},{t["chip_a"]})" '
-                   f'stroke="rgba({c},{t["edge_a"]})" stroke-width="1">'
-                   f'<animate attributeName="fill-opacity" values="0.35;1;0.35" dur="2s" begin="{begin}" '
+        cx = x0 + i * (cw + gap)
+        cy = y + 96
+        out.append(f'<rect x="{cx}" y="{cy}" width="{cw}" height="{chh}" rx="12" fill="rgba({c},{t["chip_a"]})" '
+                   f'stroke="rgba({c},{t["edge_a"]})" stroke-width="1.2">'
+                   f'<animate attributeName="fill-opacity" values="0.35;1;0.35" dur="2s" begin="{i * 0.5}s" '
                    f'repeatCount="indefinite"/></rect>')
-        size = 10.5 if len(name) > 10 else 12
-        out.append(f'<text x="{cx + cw / 2}" y="{cy + 19.5}" font-size="{size}" font-weight="600" '
+        out.append(f'<text x="{cx + cw / 2}" y="{cy + 26}" font-size="16" font-weight="600" '
                    f'text-anchor="middle" fill="{t["title"]}">{esc(name)}</text>')
     return "".join(out)
 
@@ -148,30 +150,31 @@ def build(theme):
         c = HUES[hue]
         p.append(f'<rect x="10" y="{y - 56}" width="{W - 20}" height="{h + 70}" rx="20" fill="rgba({c},0.04)" '
                  f'stroke="rgba({c},0.45)" stroke-width="1.2" stroke-dasharray="6 5"/>')
-        p.append(f'<circle cx="{COLS[0] + 14}" cy="{y - 28}" r="14" fill="rgba({c},{t["chip_a"]})" '
+        p.append(f'<circle cx="{COLS[0] + 14}" cy="{y - 30}" r="16" fill="rgba({c},{t["chip_a"]})" '
                  f'stroke="rgba({c},{t["edge_a"]})" stroke-width="1.2"/>')
-        p.append(f'<text x="{COLS[0] + 14}" y="{y - 23}" font-size="14" font-weight="800" text-anchor="middle" '
+        p.append(f'<text x="{COLS[0] + 14}" y="{y - 24}" font-size="16" font-weight="800" text-anchor="middle" '
                  f'fill="{t["title"]}">{letter}</text>')
-        p.append(f'<text x="{COLS[0] + 38}" y="{y - 23}" font-size="15" font-weight="700" letter-spacing="0.5" '
+        p.append(f'<text x="{COLS[0] + 42}" y="{y - 24}" font-size="18" font-weight="700" letter-spacing="0.5" '
                  f'fill="{t["title"]}">{esc(name)}</text>')
-        p.append(f'<text x="{COLS[0] + 38 + 10 * len(name) + 14}" y="{y - 23}" font-size="13" '
+        p.append(f'<text x="{COLS[0] + 42 + 12.2 * len(name) + 16}" y="{y - 24}" font-size="15" '
                  f'fill="{t["role"]}">{esc(sub)}</text>')
 
     for c in CARDS:
         p.append(card(t, *c))
-    p.append(teacher_chips(t, ROW_B))
+    p.append(teacher_chips(t, ROW_B1))
 
-    def gap(col):
-        return COLS[col] + CW, COLS[col + 1]
+    def right(col, y):
+        return flow(t, COLS[col] + CW, COLS[col + 1], y)
 
-    ya, yb = ROW_A + CH_A / 2, ROW_B + CH_B / 2
-    p.append(flow(t, *gap(0), ya))
-    p.append(flow(t, COLS[2] + CW, COLS[3], ya))
-    p.append(flow(t, *gap(3), ya))
-    p.append(flow(t, *gap(0), yb))
-    p.append(flow(t, *gap(1), yb))
-    p.append(flow(t, *gap(2), yb))
-    p.append(flow(t, *gap(3), yb))
+    ya, yb1, yb2 = ROW_A + CH_A / 2, ROW_B1 + CH_B1 / 2, ROW_B2 + CH_B2 / 2
+    p += [right(0, ya), right(1, ya), right(2, ya), right(0, yb1), right(1, yb2), right(2, yb2)]
+    # teachers down into the student
+    sx = COLS[1] + CW / 2
+    p.append(f'<path d="M{sx},{ROW_B1 + CH_B1 + 4} V{ROW_B2 - 4}" fill="none" stroke="{t["arrow"]}" '
+             f'stroke-width="2.2" stroke-dasharray="5 5" marker-end="url(#ah)"><animate '
+             f'attributeName="stroke-dashoffset" from="10" to="0" dur="0.6s" repeatCount="indefinite"/></path>')
+    p.append(f'<text x="{sx + 12}" y="{(ROW_B1 + CH_B1 + ROW_B2) / 2 + 5}" font-size="15" '
+             f'fill="{t["label"]}">soft labels</text>')
 
     p.append("</svg>")
     return "\n".join(p) + "\n"
