@@ -26,6 +26,9 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 </td>
 </tr></table>
 
+<p align="center"><img src="docs/media/alif_e8_devkit_layout.png" alt="Alif E8 DevKit board layout with labelled parts: ALIF E8 SoC, IMUs, RGB LEDs, camera, microphones, SD card, Ethernet, JTAG" width="100%"><br>
+<sub>Board layout. This project uses the <b>ALIF E8</b> SoC (Cortex-M55 + Ethos-U85), the on-board <b>IMU</b> and the <b>RGB LEDs</b>. Images: Alif Semiconductor.</sub></p>
+
 ## Demo
 
 | | Video |
