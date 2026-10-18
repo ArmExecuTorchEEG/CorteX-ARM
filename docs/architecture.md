@@ -272,3 +272,15 @@ Session: `RESET`, `SET_SUBJECT`, then continuous stream from `--lead-in` (10 s) 
 One inference per cue, when window `[cue_125 + 62, cue_125 + 318)` completes (cue + 2.544 s; `cue_125 = n_250 // 2`). `FREE_RUN 1`: also one every 256 ms on newest window (`"trial":-1`). `seq` = last sample of window; `trial` = cue index since `RESET`; `raw_cls` = argmax(logits); `conf` = its softmax; `cls` = −1 if `motion` = 1, else `raw_cls`; `label` echoes `CUE` arg. `lat_us`: last UART byte of window's last sample (stamped in UART ISR) → just before JSON formatting; excludes formatting and queueing (few µs); chunk-granular (up to ~90 µs).
 
 Motion gate: `motion` = 1 if, in the 500 ms before inference, `max | |a| − 1 g | > 0.25 g` or any axis changed > 0.25 g between consecutive samples (`firmware/src/motion_config.h`). Only `bridge.py` opens the serial port; it republishes every board line plus its own `{"event":"cue"}` records as UDP to `127.0.0.1:5555`, where `demo_ui.py` and `measure.py` listen.
+
+## Workload placement
+
+| Work | Where | Why |
+|---|---|---|
+| EEG source | Laptop (`bridge.py --source replay`) | No headset; recorded trials paced at 250 Hz like a live stream |
+| Framing to UART | Laptop (`bridge.py`) | Thin: no filtering, no ML |
+| CAR, band-pass (4 SOS), decimate to 125 Hz, window | Cortex-M55, per sample, float64 | Must match `host/pipeline_ref.py` bit for bit; 243 cycles/sample (FVP) |
+| Euclidean alignment (per subject), scale, int8 quantize | Cortex-M55, per window | 99.7 k cycles ≈ 0.25 ms at 400 MHz (FVP) |
+| Inference | Ethos-U85 | All conv/linear ops delegated; 128 k NPU cycles per window (FVP). The `.pte` I/O is float, quantize/dequantize run on the M55 |
+| IMU read + motion gate | Cortex-M55 | On-board ICM-42670-P over I3C, polled at 100 Hz |
+| Display, metrics | Laptop (`demo_ui.py`, `measure.py`) | Not scored; keeps board workload honest |
