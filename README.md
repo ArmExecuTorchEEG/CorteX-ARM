@@ -42,35 +42,54 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 
 ## Demo
 
-### Demo UI
+### Live demo on the Alif E8
 
-From model to board in five steps: model check, FVP validation, firmware build, flashing the Alif E8, then live predictions for held-out EEG trials with the cue, scalp map, 22 EEG channels and running accuracy.
+One run of the demo: held-out EEG trials stream to the board, the E8 predicts left or right hand on the Ethos-U85, and the UI shows the cue, scalp map, 22 EEG channels, running accuracy and the session summary (26 trials, 76.9 %).
 
-<p align="center"><a href="docs/video/demo_ui.mp4"><img src="docs/video/demo_ui.webp" alt="Demo UI, 27 s animation; click for the full-quality video" width="100%"></a><br><sub>Click for the full-quality video.</sub></p>
+<p align="center"><a href="docs/video/demo_ui.mp4"><img src="docs/video/demo_ui.webp" alt="Live demo on the Alif E8, 75 s animation; click for the full-quality video" width="100%"></a><br><sub>Click for the full-quality video.</sub></p>
+
+### From trained model to board (verification)
+
+The checks before the demo, in five steps: model identity, FVP validation against the TOSA reference, firmware build, flashing the E8 with J-Link and reading the model back from MRAM, then inference on the board.
+
+<p align="center"><a href="docs/video/deploy_verification.mp4"><img src="docs/video/deploy_verification.webp" alt="From trained model to board, 27 s animation; click for the full-quality video" width="100%"></a><br><sub>Click for the full-quality video.</sub></p>
 
 ## Results
 
-<p align="center"><img src="docs/media/results_dashboard.png" alt="Session summary: 77.1 % accuracy over 70 trials (54 correct, 16 incorrect); confusion matrix left 24/32, right 30/38" width="100%"></p>
+Generic model (distilled student, `v0.5-distill`). On the physical E8 the laptop preprocesses each trial and sends the int8 window; the E8 runs the model on the Ethos-U85 ([`board_demo/`](board_demo/)). The on-board preprocessing firmware (Figure 2) is verified on the FVP.
 
-Session summary from the demo UI, generic model (distilled student, `v0.5-distill`): 70 held-out trials, 77.1 % accuracy (left hand 75 %, right hand 79 %).
+### Accuracy
 
-Session summary on the physical Alif E8 (board predictions, shown in the demo UI). In this board run the laptop preprocesses each trial and sends the int8 window; the E8 runs the model on the Ethos-U85 ([`board_demo/`](board_demo/)). The on-board preprocessing firmware (Figure 2) is verified on the FVP. The model on the board was checked by reading the `.pte` back from MRAM (sha256 matches the release); see the [Demo](#demo) video and [`results/board_metrics.md`](results/board_metrics.md).
+| Model | Test | Accuracy | Measured on |
+|---|---|---|---|
+| Generic | 70 held-out trials | **77.1 %** (54/70; left 24/32, right 30/38) | physical E8 |
+| Generic | 1,080 unseen trials, all 9 BCI IV 2a subjects | 74.6 % int8 | laptop, int8 reference |
+| Subject-specific | subject 1, session 2 | 79.2 % int8 (114/144) | physical E8 |
 
-**Key numbers**
+Confusion matrix of the 70-trial board run (rows = actual, columns = predicted): left 24 / 8, right 8 / 30. Details: [`results/board_metrics.md`](results/board_metrics.md).
+
+### Correctness and efficiency
 
 | Metric | Value | Measured on |
 |---|---|---|
-| Accuracy, generic model, 70 trials | 77.1 % (54/70) | physical E8 |
-| Accuracy, generic model, 1,080 unseen trials (9 subjects) | 74.6 % int8 | laptop, int8 reference |
-| Accuracy, subject-specific model, subject 1 session 2 | 79.2 % int8 (114/144); board output = FVP 160/160 | physical E8 |
-| FVP vs TOSA reference | 1,080/1,080 trials bit-exact | Corstone-320 FVP |
+| Model on the board = release | `.pte` read back from MRAM, sha256 matches | physical E8 |
+| Board output = FVP (subject-specific model) | 160/160 windows | physical E8 |
+| FVP = TOSA reference (generic model) | 1,080/1,080 trials bit-exact | Corstone-320 FVP |
 | Inference on the Ethos-U85 | 128,056 NPU cycles ≈ 0.32 ms at 400 MHz | FVP |
 | Preprocessing on the M55 | 243 cycles per sample (0.6 µs); 99.7 k cycles per window (0.25 ms) | FVP |
 | Model | 11,456 B `.pte`, 3,426 parameters, all compute on the NPU | |
 | Memory | NPU pools 124.5 KiB SRAM; code + model + tables 227 KiB MRAM | FVP, linker map |
 | Optimisation v0.1 → v0.5 | NPU cycles 226,056 → 128,056 (−43 %), pools 237 → 124.5 KiB, accuracy 71.5 → 74.6 % | FVP |
 
-End-to-end latency on the board (last sample in, prediction out) is not measured yet; the FVP estimate is under 1 ms. Full tables: [`results/summary.md`](results/summary.md).
+End-to-end latency on the board is not measured yet; the FVP estimate is under 1 ms. Full tables: [`results/summary.md`](results/summary.md).
+
+**Files** (release [`v1.0-submission`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/tag/v1.0-submission)): [`tinyeegnet_int8.pte`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/download/v1.0-submission/tinyeegnet_int8.pte) · [`cmsis-executorch.axf`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/download/v1.0-submission/cmsis-executorch.axf) (board firmware) · [`preprocess_params.json`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/download/v1.0-submission/preprocess_params.json) · [`SHA256SUMS`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/download/v1.0-submission/SHA256SUMS)
+
+<details><summary>Session summary in the demo UI (70-trial board run)</summary>
+
+<p align="center"><img src="docs/media/results_dashboard.png" alt="Session summary: 77.1 % accuracy over 70 trials (54 correct, 16 incorrect); confusion matrix left 24/32, right 30/38" width="80%"></p>
+
+</details>
 
 ## Architecture
 
@@ -231,19 +250,19 @@ python -m pytest host/tests -q                       # host tests
 
 ## For the judges
 
-| Rubric item | Points | Where to look |
-|---|---|---|
-| Functionality and reliability | 20 | [Demo](#demo) video: model check, FVP, build, flash, live predictions; 77.1 % on the physical E8 and `.pte` MRAM readback ([Results](#results)); subject-specific model board output = FVP on 160/160 windows |
-| Performance and efficiency | 20 | [Results](#results), key numbers: NPU cycles, preprocessing cycles, memory, `.pte` size, v0.1 → v0.5 optimisation (−43 % NPU cycles) |
-| Effective use of the E8 | 15 | [Workload placement](#workload-placement), Figure 1; memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
-| Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), [Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board |
-| Innovation and use-case value | 10 | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
-| Technical ambition | 10 | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
-| Engineering quality and demo | 10 | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release `v1.0-submission`; [`docs/demo_script.md`](docs/demo_script.md) |
+| Rubric item | Where to look |
+|---|---|
+| Functionality and reliability | [Live demo](#live-demo-on-the-alif-e8) and [verification](#from-trained-model-to-board-verification) videos; 77.1 % on the physical E8 and `.pte` MRAM readback ([Results](#results)); subject-specific model board output = FVP on 160/160 windows |
+| Performance and efficiency | [Results](#results), key numbers: NPU cycles, preprocessing cycles, memory, `.pte` size, v0.1 → v0.5 optimisation (−43 % NPU cycles) |
+| Effective use of the E8 | [Workload placement](#workload-placement), Figure 1; memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
+| Multimodal and sensors | EEG stream + on-board IMU motion gate ([Hardware](#hardware), [Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board |
+| Innovation and use-case value | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
+| Technical ambition | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
+| Engineering quality and demo | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release `v1.0-submission`; [`docs/demo_script.md`](docs/demo_script.md) |
 
 | Required item | Where |
 |---|---|
-| Live demonstration on the Alif E8 | [Demo](#demo), [`docs/demo_script.md`](docs/demo_script.md) |
+| Live demonstration on the Alif E8 | [Live demo](#live-demo-on-the-alif-e8), [`docs/demo_script.md`](docs/demo_script.md) |
 | Public source code | this repository |
 | Fixed release version | [`v1.0-submission`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/tag/v1.0-submission) (`.pte` and firmware `.axf` attached) |
 | Build and run instructions | [Build and run](#build-and-run) |
