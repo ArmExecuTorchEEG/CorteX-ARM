@@ -56,9 +56,11 @@ Replay stream, LEDs and the IMU motion gate: shake the board, the LED turns red 
 
 ## Results
 
-`DASHBOARD PLACEHOLDER: results dashboard`
+<p align="center"><img src="docs/media/results_dashboard.png" alt="Session summary: 77.1 % accuracy over 70 trials (54 correct, 16 incorrect); confusion matrix left 24/32, right 30/38" width="100%"></p>
 
-Detailed numbers until then: [`results/summary.md`](results/summary.md).
+Session summary from the demo UI, generic model (distilled student, `v0.5-distill`): 70 held-out trials, 77.1 % accuracy (left hand 75 %, right hand 79 %).
+
+Detailed numbers: [`results/summary.md`](results/summary.md).
 
 ## Architecture
 
