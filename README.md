@@ -22,7 +22,7 @@
 
 ## What it does
 
-Stroke-rehab BCI. User imagines left or right hand movement; board classifies it on the NPU, in real time. Board accelerometer sees motion → prediction suppressed. **No headset**: laptop replays held-out BCI IV 2a trials (session 2, never trained on) at 250 Hz, sample by sample, over the UART path a headset would use. Firmware cannot tell the difference; headset driver can come later, board untouched. IMU is on the board, so it measures board motion: wearable build puts board on head; demo moves board to show the gate.
+Stroke-rehab BCI. User imagines left or right hand movement; board classifies it on the NPU, in real time. Motor-imagery training helps stroke patients regain hand control, but today's BCIs need a PC or the cloud next to the patient. A milliwatt-class board that decodes on-device keeps raw brain data private, works without a network and can run at home or at the bedside on a battery. Board accelerometer sees motion → prediction suppressed. **No headset**: laptop replays held-out BCI IV 2a trials (session 2, never trained on) at 250 Hz, sample by sample, over the UART path a headset would use. Firmware cannot tell the difference; headset driver can come later, board untouched. IMU is on the board, so it measures board motion: wearable build puts board on head; demo moves board to show the gate.
 
 ### Hardware
 
@@ -42,17 +42,11 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 
 ## Demo
 
-### 1. Demo UI
+### Demo UI
 
 From model to board in five steps: model check, FVP validation, firmware build, flashing the Alif E8, then live predictions for held-out EEG trials with the cue, scalp map, 22 EEG channels and running accuracy.
 
 <p align="center"><a href="docs/video/demo_ui.mp4"><img src="docs/video/demo_ui.webp" alt="Demo UI, 27 s animation; click for the full-quality video" width="100%"></a><br><sub>Click for the full-quality video.</sub></p>
-
-### 2. The Alif E8 board
-
-Replay stream, LEDs and the IMU motion gate: shake the board, the LED turns red and the prediction is suppressed.
-
-`VIDEO 2 PLACEHOLDER: physical board`
 
 ## Results
 
@@ -60,7 +54,23 @@ Replay stream, LEDs and the IMU motion gate: shake the board, the LED turns red 
 
 Session summary from the demo UI, generic model (distilled student, `v0.5-distill`): 70 held-out trials, 77.1 % accuracy (left hand 75 %, right hand 79 %).
 
-Detailed numbers: [`results/summary.md`](results/summary.md).
+Session summary on the physical Alif E8 (board predictions, shown in the demo UI). The model on the board was checked by reading the `.pte` back from MRAM (sha256 matches the release); see the [Demo](#demo) video and [`results/board_metrics.md`](results/board_metrics.md).
+
+**Key numbers**
+
+| Metric | Value | Measured on |
+|---|---|---|
+| Accuracy, generic model, 70 trials | 77.1 % (54/70) | physical E8 |
+| Accuracy, generic model, 1,080 unseen trials (9 subjects) | 74.6 % int8 | laptop, int8 reference |
+| Accuracy, subject-specific model, subject 1 session 2 | 79.2 % int8 (114/144); board output = FVP 160/160 | physical E8 |
+| FVP vs TOSA reference | 1,080/1,080 trials bit-exact | Corstone-320 FVP |
+| Inference on the Ethos-U85 | 128,056 NPU cycles ≈ 0.32 ms at 400 MHz | FVP |
+| Preprocessing on the M55 | 243 cycles per sample (0.6 µs); 99.7 k cycles per window (0.25 ms) | FVP |
+| Model | 11,456 B `.pte`, 3,426 parameters, all compute on the NPU | |
+| Memory | NPU pools 124.5 KiB SRAM; code + model + tables 227 KiB MRAM | FVP, linker map |
+| Optimisation v0.1 → v0.5 | NPU cycles 226,056 → 128,056 (−43 %), pools 237 → 124.5 KiB, accuracy 71.5 → 74.6 % | FVP |
+
+End-to-end latency on the board (last sample in, prediction out) is not measured yet; the FVP estimate is under 1 ms. Full tables: [`results/summary.md`](results/summary.md).
 
 ## Architecture
 
@@ -222,13 +232,13 @@ python -m pytest host/tests -q                       # host tests
 
 | Rubric item | Points | Where to look |
 |---|---|---|
-| Functionality and reliability | 20 | [Demo](#demo) videos; board output = laptop reference on every trial ([Results](#results)) |
-| Performance and efficiency | 20 | [Results](#results): latency, NPU cycles, memory, `.pte` size, v0.1 → v0.5 optimisation |
+| Functionality and reliability | 20 | [Demo](#demo) video: model check, FVP, build, flash, live predictions; 77.1 % on the physical E8 and `.pte` MRAM readback ([Results](#results)); subject-specific model board output = FVP on 160/160 windows |
+| Performance and efficiency | 20 | [Results](#results), key numbers: NPU cycles, preprocessing cycles, memory, `.pte` size, v0.1 → v0.5 optimisation (−43 % NPU cycles) |
 | Effective use of the E8 | 15 | [Workload placement](#workload-placement), Figure 1; memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
-| Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), board video) |
+| Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), [Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board ([Status](#status)) |
 | Innovation and use-case value | 10 | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
 | Technical ambition | 10 | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
-| Engineering quality and demo | 10 | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release tags; [`docs/demo_script.md`](docs/demo_script.md) |
+| Engineering quality and demo | 10 | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release `v1.0-submission`; [`docs/demo_script.md`](docs/demo_script.md) |
 
 | Required item | Where |
 |---|---|
@@ -238,7 +248,7 @@ python -m pytest host/tests -q                       # host tests
 | Build and run instructions | [Build and run](#build-and-run) |
 | Architecture | [Architecture](#architecture), Figures 1–2 |
 | Workload placement | [Workload placement](#workload-placement), Figure 1 |
-| Performance measurements | [Results](#results), [`results/`](results/) |
+| Performance measurements | [Results](#results) key numbers, [`results/`](results/) |
 
 ## Status
 
@@ -247,12 +257,14 @@ python -m pytest host/tests -q                       # host tests
 | ✅ | Firmware builds for the DevKit-E8 and the FVP |
 | ✅ | FVP self-test: preprocessing + NPU, int8 windows bit-exact with the laptop |
 | ✅ | Laptop replay reference: 1,080/1,080 trials agree with the offline int8 model |
-| ⏳ | Board replay end to end, board output = laptop reference |
+| ✅ | Model flashed to the physical E8, `.pte` read back from MRAM, sha256 matches the release |
+| ✅ | Generic model on the physical E8: 77.1 % on 70 trials ([`results/board_metrics.md`](results/board_metrics.md), demo video) |
+| ✅ | Subject-specific model on the physical E8: board output = FVP on 160/160 windows, 79.2 % |
 | ⏳ | IMU motion gate on the board (red LED within 100 ms of a shake, no false gate when still) |
-| ⏳ | Board metrics in `results/board_metrics.md`, demo videos |
+| ⏳ | End-to-end latency measured on the board |
 | ⏳ | Tag `v1.0-submission`, repository public |
 
-Not yet confirmed on hardware: UART4 at 921600 through the PRG USB bridge, the IMU bring-up over I3C, LED pins, Ethos-U PMU counters, real timing ([details](docs/architecture.md#verification)).
+Not yet confirmed on hardware: the IMU bring-up over I3C, LED pins, Ethos-U PMU counters, board timing ([details](docs/architecture.md#verification)).
 
 ## Team
 
