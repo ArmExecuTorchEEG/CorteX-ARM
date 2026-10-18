@@ -7,7 +7,7 @@ Two models were trained for the Alif E8. Both are small TinyEEGNet-type CNNs, qu
 <img src="../docs/media/ml.svg" alt="Model A: BCI IV 2a subject 1 trains a TinyEEGNet, deployed and tested on subject 1. Model B: Cho2017 and Lee2019 train four teachers, distilled into a TinyEEGNet-wide student, deployed and tested on all 9 BCI IV 2a subjects" width="100%">
 </picture></p>
 
-| | **A. Previous model** (subject-specific) | **B. Our model** (teachers → student, the firmware default) |
+| | **A. Subject-specific model** | **B. Generic model** (teachers → student, the firmware default) |
 |---|---|---|
 | Idea | One model per person, trained on that person's labeled session | One model for everyone, trained on other datasets; a per-subject alignment matrix adapts it |
 | Training data | BCI IV 2a, subject 1, session 1 (115 train, 29 validation trials) | Cho2017 (52 subjects) + Lee2019_MI (subjects 1–20); unlabeled BCI IV 2a session 1 for fine-tuning |
@@ -28,7 +28,7 @@ All three are public and download through [MOABB](https://moabb.neurotechx.com).
 
 Only the left-hand and right-hand imagery classes are used.
 
-## Model A: subject-specific TinyEEGNet (Philippine)
+## Model A: subject-specific model
 
 1. **Download** BCI IV 2a (`src/data/download.py`).
 2. **Preprocess** (`src/data/preprocess.py`): 22 channels, causal 7–30 Hz Butterworth, window cue + 1 s to cue + 3 s (22 × 500). Per-channel z-score fitted on the 115 training trials only.
@@ -47,7 +47,7 @@ python -m pytest -q                                  # 14 tests
 ```
 `src/export.py` needs an ExecuTorch 1.5.1 environment with the Arm backend (`--official-repo`, see the Arm CMSIS-Executorch starter). Copy the Alif `ensemble_vela.ini` into the export folder first.
 
-## Model B: four teachers distilled into one student (Moamen)
+## Model B: generic model, four teachers distilled into one student
 
 1. **Download** Cho2017 and Lee2019_MI once with MOABB (below); BCI IV 2a through `src/data/download.py`. The loaders never download by themselves.
 2. **Preprocess every recording the same way** (`src/data/external.py`, `cache125.py`, `splits125.py`): the 22 BCI IV 2a channels in 2a order (missing ones interpolated), common average reference, causal 7–30 Hz, decimate to 125 Hz, window cue + 0.496 s to cue + 2.544 s (22 × 256). **Euclidean alignment** per subject and session (`src/data/align.py`), then one global scale. A test subject's alignment matrix comes from its first 24 session 2 trials, unlabeled.
@@ -83,7 +83,7 @@ Use `--device cuda` or `cpu` off Apple Silicon. Results tables land in `results/
 
 ## Metric checks
 
-| Check | A. Previous model | B. Our model |
+| Check | A. Subject-specific | B. Generic |
 |---|---|---|
 | Accuracy on its test set | 79.9 % (float, 144 trials) | **74.6 ± 14.8 %** int8 (mean over 9 subjects, 3 seeds); 74.7 % float |
 | Accuracy on BCI IV 2a subject 1 | 79.9 % (all 144 session 2 trials) | 88.6 % int8 (trials 25–144) |
@@ -99,12 +99,12 @@ Kappa and F1 for A are computed from its confusion matrix. A and B use different
 
 ## Failure cases
 
-**A. Previous model**
+**A. Subject-specific model**
 - **Right-hand bias.** Left trials are recalled 66.7 % of the time, right trials 93.1 %: 24 of 72 left trials are called right.
 - **Overfitting.** 94.8 % on training versus 75.9 % on validation; the validation set is only 29 trials, so model selection is noisy.
 - **One person only.** Every new user needs a labeled recording session and a new model.
 
-**B. Our model**
+**B. Generic model**
 - **Weak subjects.** A06 56.4 %, A09 58.3 % and A02 63.9 % are close to chance; A03 98.6 % and A08 94.7 % are near perfect. The spread (± 14.8) comes from the EEG itself: the weak subjects show little or two-sided motor rhythm change. Quantization is not the cause (float and int8 differ by 0.1 points).
 - **Optimistic estimate.** The shipped variant was chosen among 5 candidates by test accuracy, so 74.6 % is slightly optimistic. The gain over the plain distilled student (+1.1 points) holds on 3 of 3 seeds.
 - **Not yet on the board.** It passes the emulator and the bit-exact replay checks, but has not run on a physical E8.
