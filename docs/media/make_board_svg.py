@@ -5,8 +5,9 @@ is embedded as base64 so the SVG works inside a GitHub <img>. Glass callouts as 
 Run: python docs/media/make_board_svg.py docs/media
 
 GitHub serves SVGs with CSP default-src 'none', which blocks the embedded board image, so the README uses
-board.png / board-dark.png: the SVGs rendered at 2x in headless Chrome, with a transparent background
-(alpha recovered from renders on black and on white).
+board.png / board-dark.png: animated PNGs (16 frames, 1.6 s loop, transparent) made from these SVGs:
+  tools/render_board_frames.sh board.svg <dir>/light   # frames on black and white, paused at t = 0 .. 1.5 s
+  python tools/apng_delta.py <dir>/light board.png     # alpha from the black/white pair; frames store only changes
 """
 import base64
 import sys
@@ -72,7 +73,7 @@ def leader(t, hue, x1, y1, x2, y2):
     c = HUES[hue]
     mx = x1 - 40
     return (f'<path d="M{x1},{y1} H{mx} L{x2},{y2}" fill="none" stroke="rgba({c},0.95)" stroke-width="2.2" '
-            f'stroke-dasharray="6 5"><animate attributeName="stroke-dashoffset" from="22" to="0" dur="1s" '
+            f'stroke-dasharray="6 5"><animate attributeName="stroke-dashoffset" from="22" to="0" dur="0.8s" '
             f'repeatCount="indefinite"/></path>'
             f'<circle cx="{x2}" cy="{y2}" r="7" fill="rgba({c},1)" stroke="#fff" stroke-width="2"/>'
             f'<circle cx="{x2}" cy="{y2}" r="7" fill="none" stroke="rgba({c},0.9)" stroke-width="2">'
