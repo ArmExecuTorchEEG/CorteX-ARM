@@ -67,7 +67,7 @@ One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B,
 
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/media/signal-dark.svg">
-<img src="docs/media/signal.svg" alt="Figure 2. Preprocessing on the Cortex-M55: per sample decode, common average reference, 7-30 Hz band-pass, decimate to 125 Hz; per window 22 by 256 window, Euclidean alignment, scale, int8 quantize, then TinyEEGNet-wide on the Ethos-U85" width="900">
+<img src="docs/media/signal.svg" alt="Figure 2. Preprocessing on the Cortex-M55: per sample decode, common average reference, 7-30 Hz band-pass, decimate to 125 Hz; per window 22 by 256 window, Euclidean alignment, scale, int8 quantize, then TinyEEGNet-wide on the Ethos-U85" width="100%">
 </picture><br><sub><b>Figure 2.</b> Preprocessing: raw UART samples to the int8 model input.</sub></p>
 
 The laptop sends raw dataset samples; every processing step runs on the board.
@@ -79,7 +79,7 @@ The laptop sends raw dataset samples; every processing step runs on the board.
 
 <p align="center"><picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/media/ml-dark.svg">
-<img src="docs/media/ml.svg" alt="Model A: BCI IV 2a subject 1 trains a TinyEEGNet, deployed and tested on subject 1. Model B: Cho2017 and Lee2019 train four teachers, distilled into a TinyEEGNet-wide student, deployed and tested on all 9 BCI IV 2a subjects" width="900">
+<img src="docs/media/ml.svg" alt="Model A: BCI IV 2a subject 1 trains a TinyEEGNet, deployed and tested on subject 1. Model B: Cho2017 and Lee2019 train four teachers, distilled into a TinyEEGNet-wide student, deployed and tested on all 9 BCI IV 2a subjects" width="100%">
 </picture><br><sub><b>Figure 3.</b> The two trained models: subject-specific (A) and generic (B).</sub></p>
 
 | Model | Trained on | Tested on | Accuracy | `.pte` | Ran on |
