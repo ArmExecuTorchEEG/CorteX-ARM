@@ -48,3 +48,9 @@ firmware/.vscode/*
 !firmware/.vscode/fvp.sh
 !firmware/.vscode/fvp.Dockerfile
 !firmware/.vscode/launch.json.mac
+
+# ML training outputs (ml/*): runs, caches, exported bundles, generated reports
+ml/*/runs/
+ml/*/artifacts/
+ml/*/results/
+ml/*/mne_data/

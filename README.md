@@ -31,6 +31,20 @@ One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B,
 | IMU read + motion gate | Cortex-M55 | On-board ICM-42670-P over I3C, polled at 100 Hz |
 | Display, metrics | Laptop (`demo_ui.py`, `measure.py`) | Not scored; keeps board workload honest |
 
+## ML models
+
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/media/ml-dark.svg">
+<img src="docs/media/ml.svg" alt="Model A: BCI IV 2a subject 1 trains a TinyEEGNet, deployed and tested on subject 1. Model B: Cho2017 and Lee2019 train four teachers, distilled into a TinyEEGNet-wide student, deployed and tested on all 9 BCI IV 2a subjects" width="900">
+</picture></p>
+
+| Model | Trained on | Tested on | Accuracy | `.pte` | Ran on |
+|---|---|---|---|---|---|
+| **A** previous: subject-specific TinyEEGNet | BCI IV 2a subject 1, session 1 | subject 1, session 2 | 79.9 % | 13,072 B | FVP, physical E8 |
+| **B** ours: 4 teachers → TinyEEGNet-wide student (firmware default) | Cho2017 + Lee2019_MI, 72 subjects | all 9 BCI IV 2a subjects | 74.6 % int8 | 11,456 B | FVP |
+
+B needs no labeled data from the user: a 22×22 alignment matrix from 24 unlabeled trials adapts it to each person. Datasets, training steps, code, metric checks and failure cases: **[`ml/README.md`](ml/README.md)**.
+
 ## End-to-end pipeline
 
 Raw digital samples from the dataset file go to the board untouched; every processing step runs on the E8.
@@ -224,8 +238,9 @@ host/      bridge.py (replay -> UART 250 Hz, UDP 5555), demo_ui.py (live or --he
   drivers/   replay.py, sim_board.py (--board sim)       reference/  offline_int8_predictions.json, expected_board_predictions.json
   tests/     pytest                                       data/       A0{s}_session2.npz replay streams (git-ignored)
 tools/     fetch_model.sh, gen_params_h.py
+ml/        training code: distillation/ (model B: data, 4 teachers, student, int8 export), subject_model/ (model A); README.md
 results/   fvp_selftest.md (+ .log), replay_accuracy.md, board_metrics.md (once measured)
-docs/      architecture.md, demo_script.md, banner.png, media/ (pipeline SVGs)
+docs/      architecture.md, demo_script.md, banner.png, media/ (pipeline and ML SVGs + their generators)
 ```
 
 ## Submission checklist (rules)
