@@ -44,7 +44,7 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 
 | | Video |
 |---|---|
-| 1. Demo UI: predictions for held-out EEG trials, shown trial by trial with the cue, scalp map, 22 EEG channels and running accuracy | <a href="docs/video/demo_ui.mp4"><img src="docs/video/demo_ui_thumb.jpg" alt="Demo UI video (19 s): click to play" width="420"></a><br><sub>19 s · click to play</sub> |
+| 1. Demo UI: predictions for held-out EEG trials, shown trial by trial with the cue, scalp map, 22 EEG channels and running accuracy | <a href="docs/video/demo_ui.mp4"><img src="docs/video/demo_ui.webp" alt="Demo UI, 19 s animation; click for the full-quality video" width="480"></a><br><sub>plays here · click for full quality</sub> |
 | 2. The Alif E8 board: replay stream, LEDs, IMU motion gate (shake → red, prediction suppressed) | `VIDEO 2 PLACEHOLDER: physical board` |
 | 3. Emulator check before deployment: the model passes on the Corstone-320 FVP, then goes to the board | `VIDEO 3 PLACEHOLDER: emulator and deployment` |
 
