@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/banner.png" alt="ArmExecuTorchEEG — Brainwaves into action" width="100%"></p>
+<p align="center"><img src="docs/banner.png" alt="CorteX ARM — Brainwaves into action" width="100%"></p>
 
-# Edge_Deploy
+# CorteX ARM
 
 **Hackathon submission.** Motor-imagery EEG in real time → Alif Ensemble E8 → Ethos-U85 inference → predicted hand, IMU artifact gate. Judged release: tag `v1.0-submission`.
 
