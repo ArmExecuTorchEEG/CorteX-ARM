@@ -10,6 +10,22 @@
 
 Stroke-rehab BCI. User imagines left or right hand movement; board classifies it on the NPU, in real time. Board accelerometer sees motion → prediction suppressed. **No headset**: laptop replays held-out BCI IV 2a trials (session 2, never trained on) at 250 Hz, sample by sample, over the UART path a headset would use. Firmware cannot tell the difference; headset driver can come later, board untouched. IMU is on the board, so it measures board motion: wearable build puts board on head; demo moves board to show the gate.
 
+### Hardware
+
+<table><tr>
+<td width="45%"><img src="docs/media/alif_e8_devkit.png" alt="Alif Ensemble E8 DevKit board" width="100%"></td>
+<td>
+
+**Alif Ensemble E8 DevKit**, everything below runs on it:
+- **Cortex-M55** (high-performance core, 400 MHz): UART input, preprocessing, motion gate, output
+- **Ethos-U85 NPU** (`ethos-u85-256`): all of TinyEEGNet, int8
+- **On-board IMU** (ICM-42670-P over I3C): the motion gate
+- **RGB LED**: green left, blue right, red motion
+- **MRAM** holds code, the 11 KB model and the alignment tables; **SRAM** holds the NPU working memory
+
+</td>
+</tr></table>
+
 ## Demo
 
 | | Video |
