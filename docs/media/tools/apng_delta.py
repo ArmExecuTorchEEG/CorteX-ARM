@@ -54,8 +54,9 @@ def write(frames, out, delay_ms):
 
 if __name__ == "__main__":
     P, out = sys.argv[1], sys.argv[2]
+    n = int(sys.argv[3]) if len(sys.argv) > 3 else 16   # number of 100 ms frames
     frames = []
-    for i in range(16):
+    for i in range(n):
         k = np.asarray(Image.open(f"{P}_{i}_000000.png").convert("RGB")).astype(float)
         w = np.asarray(Image.open(f"{P}_{i}_ffffff.png").convert("RGB")).astype(float)
         a = np.clip(1 - (w - k).mean(-1) / 255, 0, 1)
