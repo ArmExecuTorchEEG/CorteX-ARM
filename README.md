@@ -40,8 +40,10 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 </td>
 </tr></table>
 
-<p align="center"><img src="docs/media/alif_e8_devkit_layout.png" alt="Alif E8 DevKit board layout with labelled parts: ALIF E8 SoC, IMUs, RGB LEDs, camera, microphones, SD card, Ethernet, JTAG" width="100%"><br>
-<sub>Board layout. This project uses the <b>ALIF E8</b> SoC (Cortex-M55 + Ethos-U85), the on-board <b>IMU</b> and the <b>RGB LEDs</b>. Images: Alif Semiconductor.</sub></p>
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/media/board-dark.svg">
+<img src="docs/media/board.svg" alt="Where each workload runs on the Alif E8 DevKit: Ethos-U85 NPU, Cortex-M55, MRAM and SRAM inside the ALIF E8 chip; on-board IMU; RGB LEDs; the laptop streams over USB UART4" width="100%">
+</picture><br><sub><b>Workload placement on the board.</b> Board image: Alif Semiconductor.</sub></p>
 
 ## Demo
 
@@ -68,10 +70,7 @@ One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B,
 
 ### Workload placement
 
-<p align="center"><picture>
-<source media="(prefers-color-scheme: dark)" srcset="docs/media/board-dark.svg">
-<img src="docs/media/board.svg" alt="Where each workload runs on the Alif E8 DevKit: Ethos-U85 NPU, Cortex-M55, MRAM and SRAM inside the ALIF E8 chip; on-board IMU; RGB LEDs; the laptop streams over USB UART4" width="100%">
-</picture><br><sub><b>Workload placement on the board.</b> Board image: Alif Semiconductor.</sub></p>
+Where each block sits on the board: [Hardware](#hardware) figure.
 
 | Work | Where | Why |
 |---|---|---|
