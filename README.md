@@ -250,9 +250,9 @@ Not yet confirmed on hardware: UART4 at 921600 through the PRG USB bridge, the I
 
 | Name | Role |
 |---|---|
-| Moamen Soliman | Firmware (DSP, UART, IMU gate), generic model, emulator |
-| philippinech3025 | Subject-specific model, board streaming validation |
-| Jihyung Ku | Model, replay harness |
+| Moamen Soliman | EEG Model Architecture, Training & Optimization |
+| Philippine Chauvet | Embedded AI Engineering, Firmware & Hardware Integration |
+| Jihyung Ku | Frontend Engineering & UI/UX Design |
 
 ## Credits
 
