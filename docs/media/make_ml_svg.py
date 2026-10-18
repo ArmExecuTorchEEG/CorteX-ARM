@@ -79,7 +79,7 @@ CARDS = [
 TEACHERS = ["EEGNet", "ShallowConvNet", "DeepConvNet", "Riemann"]
 
 PANELS = [
-    (ROW_A, CH_A, "a", "A", "SUBJECT-SPECIFIC MODEL", "TinyEEGNet trained and tested on one person"),
+    (ROW_A, CH_A, "a", "A", "SUBJECT-SPECIFIC MODEL", "subject-specific TinyEEGNet, trained and tested on one person"),
     (ROW_B, CH_B, "b", "B", "GENERIC MODEL", "four teachers distilled into one small student that serves every subject"),
 ]
 

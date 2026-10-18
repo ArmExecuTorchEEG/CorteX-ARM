@@ -4,7 +4,7 @@
 <circle cx="38" cy="46" r="14" fill="rgba(100,116,139,0.28)" stroke="rgba(100,116,139,0.75)" stroke-width="1.2"/>
 <text x="38" y="51" font-size="14" font-weight="800" text-anchor="middle" fill="#2b2b2b">A</text>
 <text x="62" y="51" font-size="15" font-weight="700" letter-spacing="0.5" fill="#2b2b2b">SUBJECT-SPECIFIC MODEL</text>
-<text x="296" y="51" font-size="13" fill="#6b6b6b">TinyEEGNet trained and tested on one person</text>
+<text x="296" y="51" font-size="13" fill="#6b6b6b">subject-specific TinyEEGNet, trained and tested on one person</text>
 <rect x="10" y="248" width="1220" height="242" rx="20" fill="rgba(124,92,255,0.04)" stroke="rgba(124,92,255,0.45)" stroke-width="1.2" stroke-dasharray="6 5"/>
 <circle cx="38" cy="276" r="14" fill="rgba(124,92,255,0.28)" stroke="rgba(124,92,255,0.75)" stroke-width="1.2"/>
 <text x="38" y="281" font-size="14" font-weight="800" text-anchor="middle" fill="#2b2b2b">B</text>
