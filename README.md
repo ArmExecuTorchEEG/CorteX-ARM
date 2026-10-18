@@ -136,19 +136,37 @@ One prediction per trial, 2.544 s after the cue, when its window is complete; `F
 
 ## Build and run
 
-Clone and fetch the model bundle (needs `gh` with org read access):
+Three ways in, from no hardware to the full board demo:
+
+| Path | You need | Time | Result |
+|---|---|---|---|
+| **A. Emulator only** | Docker + Keil MDK Community licence | ~10 min | Whole board pipeline runs on the Corstone-320 FVP: `Test_result: PASS` |
+| **B. Board demo** | Alif E8 DevKit, USB-C cable | ~20 min | Live left/right predictions in the demo UI, LEDs on the board |
+| **C. Retrain the models** | ~35 GB of EEG data, a GPU or Apple Silicon | hours | New `.pte` bundle, see [`ml/README.md`](ml/README.md) |
+
+<details open>
+<summary><b>0. Setup (all paths)</b></summary>
+
+| Tool | Version | For |
+|---|---|---|
+| VS Code + Arm Keil Studio Pack | CMSIS-Toolbox 2.15, Arm Compiler 6 | building the firmware |
+| ExecuTorch | 1.5.1 (pinned in the pack) | runtime on the board |
+| Python | 3.12, `pip install -r host/requirements.txt` | bridge, demo UI, checks |
+| Docker (colima or Docker Desktop) | image `cmsis-fvp:11.32.23` | path A on macOS |
+| Alif SETOOLS, SEGGER J-Link | ≥ 1.110, ≥ 8.42 | path B |
 
 ```bash
-git clone https://github.com/ArmExecuTorchEEG/Edge_Deploy && cd Edge_Deploy
-./tools/fetch_model.sh                       # v0.5-distill from Reproduce_Baselines, sha256 checked, writes firmware/model/params.json
-python3 tools/gen_params_h.py --check        # firmware/src/params_gen.h matches params.json
+git clone https://github.com/ArmExecuTorchEEG/CorteX-ARM && cd CorteX-ARM
+./tools/fetch_model.sh                       # optional: the model is already embedded; this re-downloads and checks sha256
+python3 tools/gen_params_h.py --check        # firmware/src/params_gen.h matches firmware/model/params.json
+source ~/.vcpkg/vcpkg-init && (cd firmware && vcpkg-shell activate)   # command-line toolchain
 ```
+</details>
 
-The AI layer (`firmware/ai_layer/model_pte.c`, the `.pte` as a C array) is committed, so the build needs only the CMSIS toolchain: VS Code + Keil Studio Pack, CMSIS-Toolbox 2.15, ExecuTorch 1.5.1. Command line: run `source ~/.vcpkg/vcpkg-init && vcpkg-shell activate` in `firmware/` first. Step-by-step from a fresh clone: [`docs/deploy_runbook.md`](docs/deploy_runbook.md).
+<details open>
+<summary><b>A. Run the whole pipeline on the emulator</b></summary>
 
-### 1. Check the whole pipeline on the emulator (no board)
-
-The `SelfTest` build replays an embedded A03 stream (5 trials, 13,381 frames) through the real parser, preprocessing, Ethos-U85 and JSON path on the Corstone-320 FVP:
+The `SelfTest` build feeds an embedded stream (subject A03, 5 trials) through the real parser, preprocessing, NPU and JSON output:
 
 ```bash
 cbuild firmware/edge_eeg.csolution.yml --context edge_eeg.SelfTest+SSE-320-U85 --packs
@@ -157,106 +175,92 @@ cd firmware && docker run --rm -i --init --user $(id -u) --mount "type=bind,src=
   FVP_Corstone_SSE-320 -f board/Corstone-320/fvp_config.txt --simlimit 600 --stat \
   -a out/edge_eeg/SSE-320-U85/SelfTest/edge_eeg.axf
 ```
+✅ Expect `Test_result: PASS` and 0 of 28,160 int8 values different from the laptop reference ([`results/fvp_selftest.md`](results/fvp_selftest.md)).
+</details>
 
-Expect `Test_result: PASS` and 0 of 28,160 int8 elements different. Recorded run: [`results/fvp_selftest.md`](results/fvp_selftest.md). On macOS the FVP runs in Docker (colima or Docker Desktop) with a Keil MDK Community licence.
+<details open>
+<summary><b>B. Flash the board and run the demo</b></summary>
 
-### 2. Build and flash the board
+1. **Build:** `cbuild firmware/edge_eeg.csolution.yml --active DevKit-E8 --packs`, or in VS Code: CMSIS view > target **DevKit-E8** > Build.
+2. **Wire:** USB-C on **PRG USB**, jumpers JP5 1-2 and JP7 3-4, SW4 → **SEUART**.
+3. **First time only:** Terminal > Run Task > *Alif: Install M55_HP debug stubs*.
+4. **Flash:** SW4 → **UART4**, then CMSIS view > Run.
+5. **Check:** a serial console at **921600** shows `READY … pte_bytes=11456 …` and `# imu ok`. Close it again.
+6. **Run:**
+   ```bash
+   python host/export_replay.py --subject 3           # once: raw BCI IV 2a samples -> host/data/A03_session2.npz
+   python host/demo_ui.py --listen 5555                # terminal 1
+   python host/bridge.py --source replay --subject 3 --session 2 --board /dev/tty.usbmodemXXXX   # terminal 2
+   ```
+7. **Show the motion gate:** shake the board; the LED turns red and the prediction is suppressed.
 
-```bash
-cbuild firmware/edge_eeg.csolution.yml --active DevKit-E8 --packs
-```
-Or in VS Code: CMSIS view on `firmware/edge_eeg.csolution.yml` > Manage Solution > target-type **DevKit-E8** > Build.
+✅ Expect 119 of 120 trials correct for subject 3, every prediction equal to [`host/reference/expected_board_predictions.json`](host/reference/expected_board_predictions.json). No board? Add `--board sim` to run the same stream against the laptop reference. Full run of show: [`docs/demo_script.md`](docs/demo_script.md); step-by-step with troubleshooting: [`docs/deploy_runbook.md`](docs/deploy_runbook.md).
+</details>
 
-1. Tools: Alif SETOOLS ≥ 1.110, SEGGER J-Link ≥ 8.42 ([`firmware/board/DevKit-E8/README.md`](firmware/board/DevKit-E8/README.md)).
-2. Board: USB-C on **PRG USB**, jumpers JP5 1-2 and JP7 3-4, SW4 → **SEUART**.
-3. First time only: Terminal > Run Task > *Alif: Install M55_HP debug stubs*.
-4. SW4 → **UART4**, then CMSIS view > Run.
-5. A serial console at **921600** shows the `READY …` line, then `# imu …`. Close the console before starting the bridge.
-
-### 3. Run the demo
-
-```bash
-pip install -r host/requirements.txt
-python host/export_replay.py --subject all          # once; needs the ml/distillation environment and ~/mne_data
-python host/demo_ui.py --listen 5555                 # terminal 1 (--headless for text only)
-python host/bridge.py --source replay --subject 3 --session 2 --board /dev/tty.usbmodemXXXX   # terminal 2
-python host/bridge.py --source replay --subject 3 --session 2 --board sim                    # no board: laptop reference
-```
-Defaults: test trials 25–144, 10 s lead-in; `--free-run` for continuous predictions. Judged run with fallbacks: [`docs/demo_script.md`](docs/demo_script.md).
-
-### 4. Verify the numbers
+<details>
+<summary><b>Verify the numbers</b></summary>
 
 ```bash
-python host/measure.py --listen 5555 --trials 120 --out results/board_metrics.md   # during a bridge run
-python host/replay_accuracy.py                       # laptop-side expected output -> results/replay_accuracy.md
+python host/measure.py --listen 5555 --trials 120 --out results/board_metrics.md   # during a board run: accuracy, latency
+python host/replay_accuracy.py                       # expected board output for all 9 subjects -> results/replay_accuracy.md
 make -C firmware/tests test                          # firmware C++ preprocessing vs host/pipeline_ref.py
 python -m pytest host/tests -q                       # host tests
 ```
+</details>
 
-### 5. Retrain the models (optional)
+## Repository map
 
-Datasets, training commands and tests for both models: [`ml/README.md`](ml/README.md).
+| Folder | What it does | Key files |
+|---|---|---|
+| [`firmware/`](firmware/) | The board application (CMSIS solution, targets `DevKit-E8` and `SSE-320-U85`) | `edge_eeg.csolution.yml`, `edge_eeg.cproject.yml` |
+| [`firmware/src/`](firmware/src/) | Application code on the Cortex-M55 | `uart_rx` (frames), `preprocess` (Figure 2), `infer` (ExecuTorch → Ethos-U85), `imu` + `motion_gate`, `leds`, `json_out`, `selftest` |
+| [`firmware/board/`](firmware/board/) | Board layers: UART4 at 921600, I3C IMU, LEDs, NPU setup | `DevKit-E8/`, `Corstone-320/` |
+| [`firmware/ai_layer/`](firmware/ai_layer/) | The int8 model as a C array, so the build works offline | `model_pte.c` |
+| [`firmware/model/`](firmware/model/) | Preprocessing constants: filter, alignment matrices, scales | `params.json` |
+| [`firmware/tests/`](firmware/tests/) | Firmware preprocessing tested on the laptop against the Python reference | `preprocess_test.cpp`, `Makefile` |
+| [`host/`](host/) | Laptop side: stream the dataset to the board, show and measure the output | `bridge.py`, `demo_ui.py`, `measure.py`, `export_replay.py` |
+| [`host/`](host/) (reference) | Bit-exact Python copy of the board pipeline and expected outputs | `pipeline_ref.py`, `int8_oracle.py`, `reference/`, `drivers/sim_board.py` |
+| [`host/tests/`](host/tests/) | Protocol, framing and reference tests | `test_*.py` |
+| [`ml/`](ml/) | Training code for both models, datasets and metrics | [`README.md`](ml/README.md), `distillation/`, `subject_model/` |
+| [`tools/`](tools/) | Fetch the model release, regenerate the firmware constants | `fetch_model.sh`, `gen_params_h.py` |
+| [`results/`](results/) | Recorded measurements | `fvp_selftest.md`, `replay_accuracy.md`, `board_metrics.md` |
+| [`docs/`](docs/) | Detailed design, runbook, demo script, figures | `architecture.md`, `deploy_runbook.md`, `demo_script.md`, `media/` |
 
-## Layout
+## For the judges
 
-```
-firmware/  edge_eeg.csolution.yml, edge_eeg.cproject.yml: targets SSE-320-U85 (FVP) and DevKit-E8; build types Debug, SelfTest
-  src/       main, app (cues, gap fill, free run), uart_rx, preprocess (CAR, band-pass, decimate, EA, quantize), infer (ExecuTorch),
-             imu, motion_gate + motion_config.h, leds, json_out, clock, selftest, params_gen.h (from tools/gen_params_h.py)
-  board/     DevKit-E8/ and Corstone-320/ layers (UART4 at 921600, I3C IMU, LEDs, NPU)
-  ai_layer/  the .pte as a C array (model_pte.c)          model/  params.json (committed); .pte, test vectors (fetched, ignored)
-  tests/     preprocess_test.cpp + Makefile; generated/ by host/make_vectors.py
-host/      bridge.py (replay -> UART at 250 Hz, UDP 5555), demo_ui.py, measure.py, replay_accuracy.py,
-           pipeline_ref.py (bit-exact reference), int8_oracle.py, make_vectors.py, export_replay.py, common.py, listen.py
-  drivers/   replay.py, sim_board.py (--board sim)       reference/  expected board predictions
-  tests/     pytest                                       data/       replay streams (git-ignored)
-ml/        training code: distillation/ (generic model), subject_model/ (subject-specific model), README.md
-tools/     fetch_model.sh, gen_params_h.py
-results/   fvp_selftest.md (+ .log), replay_accuracy.md, board_metrics.md
-docs/      architecture.md, deploy_runbook.md, demo_script.md, media/ (figures and their generators)
-```
+| Rubric item | Points | Where to look |
+|---|---|---|
+| Functionality and reliability | 20 | [Demo](#demo) videos; board output = laptop reference on every trial ([Results](#results)) |
+| Performance and efficiency | 20 | [Results](#results): latency, NPU cycles, memory, `.pte` size, v0.1 → v0.5 optimisation |
+| Effective use of the E8 | 15 | [Workload placement](#workload-placement); memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
+| Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), board video) |
+| Innovation and use-case value | 10 | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
+| Technical ambition | 10 | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
+| Engineering quality and demo | 10 | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release tags; [`docs/demo_script.md`](docs/demo_script.md) |
 
-## Submission checklist
-
-| Requirement | Where |
+| Required item | Where |
 |---|---|
-| Live demonstration on the Alif E8 | [Demo](#demo) videos; run of show in [`docs/demo_script.md`](docs/demo_script.md) |
-| Public source code repository | this repository |
-| Fixed release version | tag [`v1.0-submission`](https://github.com/ArmExecuTorchEEG/Edge_Deploy/releases/tag/v1.0-submission), with the `.pte` and firmware `.axf` as assets |
-| Build and run instructions | [Build and run](#build-and-run), [`docs/deploy_runbook.md`](docs/deploy_runbook.md) |
-| Application architecture | [Architecture](#architecture) (Figures 1–2), [`docs/architecture.md`](docs/architecture.md) |
+| Live demonstration on the Alif E8 | [Demo](#demo), [`docs/demo_script.md`](docs/demo_script.md) |
+| Public source code | this repository |
+| Fixed release version | [`v1.0-submission`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/tag/v1.0-submission) (`.pte` and firmware `.axf` attached) |
+| Build and run instructions | [Build and run](#build-and-run) |
+| Architecture | [Architecture](#architecture), Figures 1–2 |
 | Workload placement | [Workload placement](#workload-placement) |
 | Performance measurements | [Results](#results), [`results/`](results/) |
-| English | yes |
-
-## Judging map
-
-| Criterion (points) | Evidence |
-|---|---|
-| Functionality and reliability (20) | Board output = laptop reference on every trial; long replay loop without reset ([Results](#results), board video) |
-| Performance and efficiency (20) | Latency, NPU cycles, memory, `.pte` size; v0.1 → v0.5 optimisation table ([Results](#results)) |
-| Effective use of the E8 (15) | All ML on the Ethos-U85; per-sample DSP and alignment on the M55; `.pte` and tables in MRAM, NPU pools in SRAM0 ([Workload placement](#workload-placement), [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build)) |
-| Multimodal and sensor integration (15) | EEG stream + on-board IMU motion gate; shaking the board suppresses the prediction (board video) |
-| Innovation and use-case value (10) | Stroke-rehabilitation BCI on a microcontroller; one generic model that adapts to a new person from 24 unlabeled trials |
-| Technical ambition and integration (10) | Two trained models, 4-teacher distillation, bit-exact on-board preprocessing, dataset-to-NPU pipeline ([`ml/README.md`](ml/README.md)) |
-| Engineering quality and demo (10) | Tests in firmware, host and ml; emulator self-test; release tags; scripted demo with fallbacks |
 
 ## Status
 
-| Check | Result |
+| | Check |
 |---|---|
-| Firmware builds for DevKit-E8 and the FVP | ✅ |
-| FVP self-test (preprocessing + NPU, 5 trials) | ✅ `PASS`, int8 windows = `host/pipeline_ref.py` bit for bit |
-| Laptop replay reference | ✅ 1,080/1,080 trials agree with the offline int8 model |
-| Replay end-to-end on the board | ⏳ `TODO` |
-| Board predictions = laptop reference | ⏳ `TODO` |
-| IMU motion gate on the board | ⏳ `TODO` (target: red LED within 100 ms of shaking, no false gate when still) |
-| Demo UI with the board | ⏳ `TODO` |
-| Board metrics recorded (`results/board_metrics.md`) | ⏳ `TODO` |
-| Demo videos | ⏳ `TODO` |
-| Tag `v1.0-submission`, repository public | ⏳ `TODO` |
+| ✅ | Firmware builds for the DevKit-E8 and the FVP |
+| ✅ | FVP self-test: preprocessing + NPU, int8 windows bit-exact with the laptop |
+| ✅ | Laptop replay reference: 1,080/1,080 trials agree with the offline int8 model |
+| ⏳ | Board replay end to end, board output = laptop reference |
+| ⏳ | IMU motion gate on the board (red LED within 100 ms of a shake, no false gate when still) |
+| ⏳ | Board metrics in `results/board_metrics.md`, demo videos |
+| ⏳ | Tag `v1.0-submission`, repository public |
 
-Not yet checked on hardware: UART4 at 921600 through the PRG USB bridge, the ICM-42670-P bring-up over I3C, RGB LED pins and polarity, Ethos-U PMU counters, and all real timing. Details: [`docs/architecture.md`](docs/architecture.md#verification).
+Not yet confirmed on hardware: UART4 at 921600 through the PRG USB bridge, the IMU bring-up over I3C, LED pins, Ethos-U PMU counters, real timing ([details](docs/architecture.md#verification)).
 
 ## Team
 
@@ -268,9 +272,10 @@ Not yet checked on hardware: UART4 at 921600 through the PRG USB bridge, the ICM
 
 ## Credits
 
-- **Datasets** (used under each provider's terms; not redistributed here): BCI Competition IV 2a (Tangermann et al., 2012; MOABB `BNCI2014_001`), Cho et al. 2017 (GigaScience), Lee et al. 2019 (GigaScience). Downloaded through [MOABB](https://moabb.neurotechx.com).
-- **Software:** [ExecuTorch](https://github.com/pytorch/executorch) 1.5.1 with the Arm Ethos-U backend, Arm Vela, [Arm CMSIS-Executorch starter](https://github.com/Arm-Examples/CMSIS-Executorch), Alif Ensemble CMSIS pack.
+- **Datasets** (used under each provider's terms, not redistributed): BCI Competition IV 2a (Tangermann et al., 2012), Cho et al. 2017, Lee et al. 2019, all through [MOABB](https://moabb.neurotechx.com).
+- **Software:** [ExecuTorch](https://github.com/pytorch/executorch) with the Arm Ethos-U backend, Arm Vela, the [Arm CMSIS-Executorch starter](https://github.com/Arm-Examples/CMSIS-Executorch), the Alif Ensemble CMSIS pack.
 - **Methods:** EEGNet (Lawhern et al., 2018), ShallowConvNet and DeepConvNet (Schirrmeister et al., 2017), Euclidean alignment (He and Wu, 2020).
+- **Images:** board photo and layout © Alif Semiconductor.
 
 ## License
 
