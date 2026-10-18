@@ -54,7 +54,7 @@ From model to board in five steps: model check, FVP validation, firmware build, 
 
 Session summary from the demo UI, generic model (distilled student, `v0.5-distill`): 70 held-out trials, 77.1 % accuracy (left hand 75 %, right hand 79 %).
 
-Session summary on the physical Alif E8 (board predictions, shown in the demo UI). The model on the board was checked by reading the `.pte` back from MRAM (sha256 matches the release); see the [Demo](#demo) video and [`results/board_metrics.md`](results/board_metrics.md).
+Session summary on the physical Alif E8 (board predictions, shown in the demo UI). In this board run the laptop preprocesses each trial and sends the int8 window; the E8 runs the model on the Ethos-U85 ([`board_demo/`](board_demo/)). The on-board preprocessing firmware (Figure 2) is verified on the FVP. The model on the board was checked by reading the `.pte` back from MRAM (sha256 matches the release); see the [Demo](#demo) video and [`results/board_metrics.md`](results/board_metrics.md).
 
 **Key numbers**
 
@@ -225,6 +225,7 @@ python -m pytest host/tests -q                       # host tests
 | [`host/tests/`](host/tests/) | Protocol, framing and reference tests | `test_*.py` |
 | [`ml/`](ml/) | Training code for both models, datasets and metrics | [`README.md`](ml/README.md), `distillation/`, `subject_model/` |
 | [`tools/`](tools/) | Fetch the model release, regenerate the firmware constants | `fetch_model.sh`, `gen_params_h.py` |
+| [`board_demo/`](board_demo/) | Physical-board run: inference firmware, validation tools, demo UI | `firmware/multisubject/`, `tools/multisubject_trials/`, `frontend/` |
 | [`results/`](results/) | Recorded measurements | `fvp_selftest.md`, `replay_accuracy.md`, `board_metrics.md` |
 | [`docs/`](docs/) | Detailed design, runbook, demo script, figures | `architecture.md`, `deploy_runbook.md`, `demo_script.md`, `media/` |
 
@@ -264,7 +265,7 @@ python -m pytest host/tests -q                       # host tests
 | ⏳ | End-to-end latency measured on the board |
 | ⏳ | Tag `v1.0-submission`, repository public |
 
-Not yet confirmed on hardware: the IMU bring-up over I3C, LED pins, Ethos-U PMU counters, board timing ([details](docs/architecture.md#verification)).
+Not yet confirmed on hardware: the main firmware in `firmware/` (preprocessing on the M55; the board run used [`board_demo/`](board_demo/)), the IMU bring-up over I3C, LED pins, Ethos-U PMU counters, board timing ([details](docs/architecture.md#verification)).
 
 ## Team
 
