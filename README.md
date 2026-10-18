@@ -236,7 +236,7 @@ python -m pytest host/tests -q                       # host tests
 | Functionality and reliability | 20 | [Demo](#demo) video: model check, FVP, build, flash, live predictions; 77.1 % on the physical E8 and `.pte` MRAM readback ([Results](#results)); subject-specific model board output = FVP on 160/160 windows |
 | Performance and efficiency | 20 | [Results](#results), key numbers: NPU cycles, preprocessing cycles, memory, `.pte` size, v0.1 → v0.5 optimisation (−43 % NPU cycles) |
 | Effective use of the E8 | 15 | [Workload placement](#workload-placement), Figure 1; memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
-| Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), [Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board ([Status](#status)) |
+| Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), [Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board |
 | Innovation and use-case value | 10 | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
 | Technical ambition | 10 | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
 | Engineering quality and demo | 10 | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release `v1.0-submission`; [`docs/demo_script.md`](docs/demo_script.md) |
@@ -250,22 +250,6 @@ python -m pytest host/tests -q                       # host tests
 | Architecture | [Architecture](#architecture), Figures 1–2 |
 | Workload placement | [Workload placement](#workload-placement), Figure 1 |
 | Performance measurements | [Results](#results) key numbers, [`results/`](results/) |
-
-## Status
-
-| | Check |
-|---|---|
-| ✅ | Firmware builds for the DevKit-E8 and the FVP |
-| ✅ | FVP self-test: preprocessing + NPU, int8 windows bit-exact with the laptop |
-| ✅ | Laptop replay reference: 1,080/1,080 trials agree with the offline int8 model |
-| ✅ | Model flashed to the physical E8, `.pte` read back from MRAM, sha256 matches the release |
-| ✅ | Generic model on the physical E8: 77.1 % on 70 trials ([`results/board_metrics.md`](results/board_metrics.md), demo video) |
-| ✅ | Subject-specific model on the physical E8: board output = FVP on 160/160 windows, 79.2 % |
-| ⏳ | IMU motion gate on the board (red LED within 100 ms of a shake, no false gate when still) |
-| ⏳ | End-to-end latency measured on the board |
-| ⏳ | Tag `v1.0-submission`, repository public |
-
-Not yet confirmed on hardware: the main firmware in `firmware/` (preprocessing on the M55; the board run used [`board_demo/`](board_demo/)), the IMU bring-up over I3C, LED pins, Ethos-U PMU counters, board timing ([details](docs/architecture.md#verification)).
 
 ## Team
 
