@@ -21,6 +21,9 @@ W, H = 1500, 560
 HERE = Path(__file__).parent
 HUES = {"cap": "124,92,255", "data": "6,182,212", "eeg": "34,197,94", "board": "245,158,11", "pc": "59,130,246"}
 LOOP = 3.2
+# one colour per channel, cycling through the figure palette
+TRACE = ["244,63,94", "249,115,22", "234,179,8", "34,197,94", "20,184,166", "6,182,212",
+         "59,130,246", "99,102,241", "139,92,246", "217,70,239", "236,72,153", "132,204,22"]
 
 
 def b64(path, width):
@@ -79,7 +82,7 @@ def trace(ch, width, amp):
 
 def build(theme):
     t = THEMES[theme]
-    cap, cap_h = b64("eeg_cap.png", 150)
+    cap, cap_h = b64("eeg_cap.png", 120)
     board, board_h = b64("alif_e8_board_top.png", 300)
     p = [f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {W} {H}" '
          f'width="{W}" height="{H}" font-family="Inter, -apple-system, \'Segoe UI\', Helvetica, Arial, sans-serif">',
@@ -95,7 +98,7 @@ def build(theme):
     cx, cy, cw, ch = 20, 20, 320, 240
     p.append(glass(t, "cap", cx, cy, cw, ch, dash=True))
     p.append(head(t, "cap", cx, cy, cw, "wave", "EEG CAP", "TARGET"))
-    p.append(f'<image x="{cx + 14}" y="{cy + 56}" width="150" height="{cap_h}" href="data:image/png;base64,{cap}" '
+    p.append(f'<image x="{cx + 24}" y="{cy + 62}" width="120" height="{cap_h}" href="data:image/png;base64,{cap}" '
              f'xlink:href="data:image/png;base64,{cap}"/>')
     p.append(lines(t, cx + 176, cy + 90, ["The real input:", "a wearable cap", "on the patient.", "Not used in this", "demo (no headset)."], 14, 21))
 
@@ -123,7 +126,7 @@ def build(theme):
              'repeatCount="indefinite"/>')
     for i, n in enumerate(names):
         p.append(f'<path transform="translate(0,{12 + 21.5 * i})" d="{trace(i, 200, 6.5)}" fill="none" '
-                 f'stroke="rgba({c},{0.95 if theme == "dark" else 0.9})" stroke-width="1.3" stroke-linejoin="round"/>')
+                 f'stroke="rgb({TRACE[i % len(TRACE)]})" stroke-width="1.4" stroke-linejoin="round"/>')
     p.append('</g></g></g>')
     for i, n in enumerate(names):
         p.append(f'<text x="{ex + 22}" y="{ey + 80 + 21.5 * i}" font-size="11.5" font-weight="600" fill="{t["role"]}" '
