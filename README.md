@@ -24,6 +24,11 @@
 
 Stroke-rehab BCI. User imagines left or right hand movement; board classifies it on the NPU, in real time. Motor-imagery training helps stroke patients regain hand control, but today's BCIs need a PC or the cloud next to the patient. A milliwatt-class board that decodes on-device keeps raw brain data private, works without a network and can run at home or at the bedside on a battery. Board accelerometer sees motion → prediction suppressed. **No headset**: laptop replays held-out BCI IV 2a trials (session 2, never trained on) at 250 Hz, sample by sample, over the UART path a headset would use. Firmware cannot tell the difference; headset driver can come later, board untouched. IMU is on the board, so it measures board motion: wearable build puts board on head; demo moves board to show the gate.
 
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/media/overview-dark.png">
+<img src="docs/media/overview.png" alt="Overview: an EEG cap is the target input; in this demo the public BCI Competition IV 2a dataset replaces it. 22-channel EEG streams over UART at 250 Hz into the Alif E8 board (Cortex-M55 preprocessing, Ethos-U85 inference), which sends the predicted hand to a PC that moves a cursor left or right" width="100%">
+</picture><br><sub>Overview. No EEG cap in this demo: held-out trials from the public BCI Competition IV 2a dataset stream to the board as a cap would.</sub></p>
+
 ### Hardware
 
 <table><tr>
