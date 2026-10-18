@@ -19,6 +19,6 @@ Confusion matrix (rows = actual, columns = predicted):
 
 Model identity on the board: the `.pte` was read back from MRAM after flashing (SEGGER J-Link) and its sha256 matches the release.
 
-Screenshot: [`docs/media/results_dashboard.png`](../docs/media/results_dashboard.png). Videos: [live demo](../docs/video/demo_ui.mp4), [model to board verification](../docs/video/deploy_verification.mp4).
+Screenshot: [`docs/media/results_dashboard.png`](../docs/media/results_dashboard.png). Videos: [live demo](../docs/video/live_demo.mp4), [model to board verification](../docs/video/deploy_verification.mp4).
 
 Not measured on the board yet: end-to-end latency, Ethos-U PMU cycle counts, IMU motion gate.

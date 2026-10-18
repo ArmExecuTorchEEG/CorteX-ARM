@@ -46,7 +46,7 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 
 One run of the demo: held-out EEG trials stream to the board, the E8 predicts left or right hand on the Ethos-U85, and the UI shows the cue, scalp map, 22 EEG channels, running accuracy and the session summary (26 trials, 76.9 %).
 
-<p align="center"><a href="docs/video/demo_ui.mp4"><img src="docs/video/demo_ui.webp" alt="Live demo on the Alif E8, 75 s animation; click for the full-quality video" width="100%"></a><br><sub>Click for the full-quality video.</sub></p>
+<p align="center"><a href="docs/video/live_demo.mp4"><img src="docs/video/live_demo.webp" alt="Live demo on the Alif E8, 75 s animation; click for the full-quality video" width="100%"></a><br><sub>Click for the full-quality video.</sub></p>
 
 ### From trained model to board (verification)
 
