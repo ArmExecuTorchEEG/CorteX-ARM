@@ -40,11 +40,6 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 </td>
 </tr></table>
 
-<p align="center"><picture>
-<source media="(prefers-color-scheme: dark)" srcset="docs/media/board-dark.jpg">
-<img src="docs/media/board.jpg" alt="Where each workload runs on the Alif E8 DevKit: Ethos-U85 NPU, Cortex-M55, MRAM and SRAM inside the ALIF E8 chip; on-board IMU; RGB LEDs; the laptop streams over USB UART4" width="100%">
-</picture><br><sub><b>Workload placement on the board.</b> Board image: Alif Semiconductor.</sub></p>
-
 ## Demo
 
 | | Video |
@@ -70,7 +65,10 @@ One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B,
 
 ### Workload placement
 
-Where each block sits on the board: [Hardware](#hardware) figure.
+<p align="center"><picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/media/board-dark.png">
+<img src="docs/media/board.png" alt="Where each workload runs on the Alif E8 DevKit: Ethos-U85 NPU, Cortex-M55, MRAM and SRAM inside the ALIF E8 chip; on-board IMU; RGB LEDs; the laptop streams over USB UART4" width="100%">
+</picture><br><sub><b>Workload placement on the board.</b> Board image: Alif Semiconductor.</sub></p>
 
 | Work | Where | Why |
 |---|---|---|
