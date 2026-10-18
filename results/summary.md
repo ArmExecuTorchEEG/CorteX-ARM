@@ -6,8 +6,9 @@ Numbers shown in the README before the dashboard. Sources: [`ml/README.md`](../m
 |---|---|---|
 | Accuracy, generic model (9 BCI IV 2a subjects, 1,080 unseen trials) | 74.6 % int8 (mean of 3 seeds); shipped seed 74.4 %, best subject 99.2 % | laptop, [`ml/README.md`](../ml/README.md) |
 | Accuracy, subject-specific model (subject 1, session 2) | 79.9 % float; 79.2 % int8 on the board | laptop; physical E8 |
-| Board output = laptop reference | `TODO` (target: 120/120 per subject) | physical E8 |
-| End-to-end latency (last sample in → prediction out) | `TODO` (estimate ≈ 1 ms; target < 50 ms) | physical E8 |
+| Accuracy, generic model, physical E8 | 77.1 % (54/70 trials), [`board_metrics.md`](board_metrics.md) | physical E8 |
+| Board output = FVP, subject-specific model | 160/160 windows | physical E8 |
+| End-to-end latency (last sample in → prediction out) | not measured on the board; FVP estimate under 1 ms | FVP |
 | Inference on the Ethos-U85 | 128,056 NPU cycles ≈ 0.32 ms at 400 MHz | FVP |
 | Preprocessing on the M55 | 243 cycles per sample (0.6 µs); 99.7 k cycles per window (0.25 ms) | FVP |
 | Model size | 11,456 B `.pte`, 3,426 parameters | |
