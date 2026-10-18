@@ -1,5 +1,6 @@
-"""Write an APNG whose frames after the first only carry the changed regions (OP_SOURCE, several
-zero-delay sub-frames per time step), so a mostly static figure stays small."""
+"""Write an APNG whose frames after the first only carry the changed regions (OP_SOURCE), so a mostly
+static figure stays small. Each time step uses at most 4 sub-frames that split the step delay between them:
+browsers treat delays of 10 ms or less as 100 ms, so zero-delay sub-frames would slow the loop down."""
 import io, struct, sys, zlib
 import numpy as np
 from PIL import Image
@@ -16,7 +17,7 @@ def idat_of(img):
         i += 12 + n
     return out
 
-def regions(prev, cur, pad=3, max_n=24):
+def regions(prev, cur, pad=3, max_n=4):
     diff = np.any(prev != cur, axis=-1)
     if not diff.any(): return []
     lab, n = label(binary_dilation(diff, iterations=pad))
@@ -40,8 +41,9 @@ def write(frames, out, delay_ms):
     data += chunk(b"acTL", struct.pack(">II", nframes, 0))
     for k, boxes in enumerate(plan):
         for bi, (y0, y1, x0, x1) in enumerate(boxes):
-            last = bi == len(boxes) - 1
-            fc = struct.pack(">IIIIIHHBB", seq, x1 - x0, y1 - y0, x0, y0, delay_ms if last else 0, 1000, 0, 0)
+            share = delay_ms // len(boxes)
+            d = delay_ms - share * (len(boxes) - 1) if bi == len(boxes) - 1 else share
+            fc = struct.pack(">IIIIIHHBB", seq, x1 - x0, y1 - y0, x0, y0, d, 1000, 0, 0)
             data += chunk(b"fcTL", fc); seq += 1
             raw = idat_of(Image.fromarray(arrs[k][y0:y1, x0:x1], "RGBA"))
             if k == 0 and bi == 0: data += chunk(b"IDAT", raw)
