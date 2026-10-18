@@ -16,7 +16,7 @@
 <img alt="author: Claude Code" src="https://img.shields.io/badge/author-Claude%20Code-D97757?style=flat-square&labelColor=4a4a4a&logo=claude&logoColor=white"> <img alt="checker: OpenAI Codex" src="https://img.shields.io/badge/checker-OpenAI%20Codex-10A37F?style=flat-square&labelColor=4a4a4a">
 </p>
 
-<p align="center"><b><a href="#hardware">Hardware</a> · <a href="#demo">Demo</a> · <a href="#results">Results</a> · <a href="#architecture">Architecture</a> · <a href="#ml-models">ML models</a> · <a href="#build-and-run">Build and run</a> · <a href="#team">Team</a> · <a href="#license">License</a></b></p>
+<p align="center"><b><a href="#demo">Demo</a> · <a href="#results">Results</a> · <a href="#architecture">Architecture</a> · <a href="#ml-models">ML models</a> · <a href="#build-and-run">Build and run</a> · <a href="#team">Team</a> · <a href="#license">License</a></b></p>
 
 <p align="center"><a href="docs/architecture.md"><img alt="docs: architecture" src="https://img.shields.io/badge/docs-architecture-7B3FE4?style=flat-square&labelColor=4a4a4a"></a> <a href="docs/deploy_runbook.md"><img alt="docs: deploy runbook" src="https://img.shields.io/badge/docs-deploy%20runbook-16A085?style=flat-square&labelColor=4a4a4a"></a> <a href="docs/demo_script.md"><img alt="docs: demo script" src="https://img.shields.io/badge/docs-demo%20script-E8318A?style=flat-square&labelColor=4a4a4a"></a> <a href="ml/README.md"><img alt="docs: ML training" src="https://img.shields.io/badge/docs-ML%20training-EE4C2C?style=flat-square&labelColor=4a4a4a"></a> <a href="results/fvp_selftest.md"><img alt="docs: FVP self-test" src="https://img.shields.io/badge/docs-FVP%20self--test-F39C12?style=flat-square&labelColor=4a4a4a"></a> <a href="results/replay_accuracy.md"><img alt="docs: replay accuracy" src="https://img.shields.io/badge/docs-replay%20accuracy-2E86C1?style=flat-square&labelColor=4a4a4a"></a></p>
 
@@ -28,22 +28,6 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 <source media="(prefers-color-scheme: dark)" srcset="docs/media/overview-dark.png">
 <img src="docs/media/overview.png" alt="Overview: an EEG cap is the target input; in this demo the public BCI Competition IV 2a dataset replaces it. 22-channel EEG streams over UART at 250 Hz into the Alif E8 board (Cortex-M55 preprocessing, Ethos-U85 inference), which sends the predicted hand to a PC that moves a cursor left or right" width="100%">
 </picture><br><sub>Overview. No EEG cap in this demo: held-out trials from the public BCI Competition IV 2a dataset stream to the board as a cap would.</sub></p>
-
-### Hardware
-
-<table><tr>
-<td width="45%"><img src="docs/media/alif_e8_devkit.png" alt="Alif Ensemble E8 DevKit board" width="100%"></td>
-<td>
-
-**Alif Ensemble E8 DevKit**, everything below runs on it:
-- **Cortex-M55** (high-performance core, 400 MHz): UART input, preprocessing, motion gate, output
-- **Ethos-U85 NPU** (`ethos-u85-256`): all of TinyEEGNet, int8
-- **On-board IMU** (ICM-42670-P over I3C): the motion gate
-- **RGB LED**: green left, blue right, red motion
-- **MRAM** holds code, the 11 KB model and the alignment tables; **SRAM** holds the NPU working memory
-
-</td>
-</tr></table>
 
 ## Demo
 
@@ -260,7 +244,7 @@ python -m pytest host/tests -q                       # host tests
 | Functionality and reliability | [Live demo](#live-demo-on-the-alif-e8) and [verification](#from-trained-model-to-board-verification) videos; 77.1 % on the physical E8 and `.pte` MRAM readback ([Results](#results)); subject-specific model board output = FVP on 160/160 windows |
 | Performance and efficiency | [Results](#results), key numbers: NPU cycles, preprocessing cycles, memory, `.pte` size, v0.1 → v0.5 optimisation (−43 % NPU cycles) |
 | Effective use of the E8 | [Workload placement](#workload-placement), Figure 1; memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
-| Multimodal and sensors | EEG stream + on-board IMU motion gate ([Hardware](#hardware), [Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board |
+| Multimodal and sensors | EEG stream + on-board IMU motion gate ([Workload placement](#workload-placement)); gate implemented and tested on the FVP, not yet verified on the board |
 | Innovation and use-case value | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
 | Technical ambition | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
 | Engineering quality and demo | Tests in `firmware/`, `host/`, `ml/`; emulator self-test; release `v1.0-submission`; [`docs/demo_script.md`](docs/demo_script.md) |
