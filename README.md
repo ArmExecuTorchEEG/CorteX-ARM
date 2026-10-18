@@ -54,12 +54,6 @@ Replay stream, LEDs and the IMU motion gate: shake the board, the LED turns red 
 
 `VIDEO 2 PLACEHOLDER: physical board`
 
-### 3. Emulator check before deployment
-
-The model passes on the Corstone-320 FVP, then goes to the board.
-
-`VIDEO 3 PLACEHOLDER: emulator and deployment`
-
 ## Results
 
 `DASHBOARD PLACEHOLDER: results dashboard`
