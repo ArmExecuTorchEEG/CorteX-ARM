@@ -66,6 +66,18 @@ Detailed numbers until then: [`results/summary.md`](results/summary.md).
 
 One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s; 74.6 % int8 mean over 9 subjects × 3 seeds in Reproduce_Baselines) serves all nine subjects. `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. Previous model `v0.3-distill`: same contract, `./tools/fetch_model.sh v0.3-distill`. Detailed block diagram, end-to-end ASCII diagram, signal-path equations, memory map, timing budget: [`docs/architecture.md`](docs/architecture.md). **Step-by-step deploy (get model → build → flash → stream raw dataset signals → read predictions): [`docs/deploy_runbook.md`](docs/deploy_runbook.md).**
 
+### Workload placement
+
+| Work | Where | Why |
+|---|---|---|
+| EEG source | Laptop (`bridge.py --source replay`) | No headset; recorded trials paced at 250 Hz like a live stream |
+| Framing to UART | Laptop (`bridge.py`) | Thin: no filtering, no ML |
+| CAR, band-pass (4 SOS), decimate to 125 Hz, window | Cortex-M55, per sample, float64 | Must match `host/pipeline_ref.py` bit for bit; 243 cycles/sample (FVP) |
+| Euclidean alignment (per subject), scale, int8 quantize | Cortex-M55, per window | 99.7 k cycles ≈ 0.25 ms at 400 MHz (FVP) |
+| Inference | Ethos-U85 | All conv/linear ops delegated; 128 k NPU cycles per window (FVP). The `.pte` I/O is float, quantize/dequantize run on the M55 |
+| IMU read + motion gate | Cortex-M55 | On-board ICM-42670-P over I3C, polled at 100 Hz |
+| Display, metrics | Laptop (`demo_ui.py`, `measure.py`) | Not scored; keeps board workload honest |
+
 ### Preprocessing (inside the M55)
 
 <p align="center"><picture>
@@ -202,7 +214,7 @@ python -m pytest host/tests -q                       # host tests
 |---|---|---|
 | Functionality and reliability | 20 | [Demo](#demo) videos; board output = laptop reference on every trial ([Results](#results)) |
 | Performance and efficiency | 20 | [Results](#results): latency, NPU cycles, memory, `.pte` size, v0.1 → v0.5 optimisation |
-| Effective use of the E8 | 15 | [Figure 1](#architecture) (where each block runs); memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
+| Effective use of the E8 | 15 | [Workload placement](#workload-placement), Figure 1; memory map in [`docs/architecture.md`](docs/architecture.md#memory-map-devkit-e8-debug-build) |
 | Multimodal and sensors | 15 | EEG stream + on-board IMU motion gate ([Hardware](#hardware), board video) |
 | Innovation and use-case value | 10 | Stroke-rehab BCI on a microcontroller; one model adapts to a new person from 24 unlabeled trials |
 | Technical ambition | 10 | Two models, four-teacher distillation, bit-exact on-board preprocessing ([`ml/README.md`](ml/README.md)) |
@@ -215,7 +227,7 @@ python -m pytest host/tests -q                       # host tests
 | Fixed release version | [`v1.0-submission`](https://github.com/ArmExecuTorchEEG/CorteX-ARM/releases/tag/v1.0-submission) (`.pte` and firmware `.axf` attached) |
 | Build and run instructions | [Build and run](#build-and-run) |
 | Architecture | [Architecture](#architecture), Figures 1–2 |
-| Workload placement | [Figure 1](#architecture) (where each block runs) |
+| Workload placement | [Workload placement](#workload-placement), Figure 1 |
 | Performance measurements | [Results](#results), [`results/`](results/) |
 
 ## Status
