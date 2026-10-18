@@ -41,8 +41,8 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 </tr></table>
 
 <p align="center"><picture>
-<source media="(prefers-color-scheme: dark)" srcset="docs/media/board-dark.svg">
-<img src="docs/media/board.svg" alt="Where each workload runs on the Alif E8 DevKit: Ethos-U85 NPU, Cortex-M55, MRAM and SRAM inside the ALIF E8 chip; on-board IMU; RGB LEDs; the laptop streams over USB UART4" width="100%">
+<source media="(prefers-color-scheme: dark)" srcset="docs/media/board-dark.jpg">
+<img src="docs/media/board.jpg" alt="Where each workload runs on the Alif E8 DevKit: Ethos-U85 NPU, Cortex-M55, MRAM and SRAM inside the ALIF E8 chip; on-board IMU; RGB LEDs; the laptop streams over USB UART4" width="100%">
 </picture><br><sub><b>Workload placement on the board.</b> Board image: Alif Semiconductor.</sub></p>
 
 ## Demo
