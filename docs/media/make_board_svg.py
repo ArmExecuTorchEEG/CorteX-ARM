@@ -1,11 +1,12 @@
 """Generate the workload-on-the-board figure (light + dark animated SVG).
 
-The board render (alif_e8_board_top.jpg, from Alif's DevKit-E8 layout image with the labels removed)
+The board render (alif_e8_board_top.png, from Alif's DevKit-E8 layout image with the labels and background removed)
 is embedded as base64 so the SVG works inside a GitHub <img>. Glass callouts as in make_pipeline_svg.py.
 Run: python docs/media/make_board_svg.py docs/media
 
 GitHub serves SVGs with CSP default-src 'none', which blocks the embedded board image, so the README uses
-board.jpg / board-dark.jpg: the SVGs rendered at 2x in headless Chrome on #ffffff / #0d1117.
+board.png / board-dark.png: the SVGs rendered at 2x in headless Chrome, with a transparent background
+(alpha recovered from renders on black and on white).
 """
 import base64
 import sys
@@ -14,7 +15,7 @@ from pathlib import Path
 from make_pipeline_svg import ICONS, THEMES, esc
 
 W, H = 1500, 640
-IMG = Path(__file__).with_name("alif_e8_board_top.jpg")
+IMG = Path(__file__).with_name("alif_e8_board_top.png")
 IMG_W, IMG_H = 1100, 708          # pixel size of the jpg
 BX, BY, BW = 330, 44, 860         # where the board is drawn
 S = BW / IMG_W
@@ -89,10 +90,8 @@ def build(theme):
          '<stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>'
          f'<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
          f'<path d="M0,0 L10,5 L0,10 z" fill="rgba({HUES["host"]},1)"/></marker></defs>',
-         f'<rect x="{BX - 8}" y="{BY - 8}" width="{BW + 16}" height="{IMG_H * S + 16}" rx="18" fill="none" '
-         f'stroke="{t["arrow"]}" stroke-width="1.2" stroke-dasharray="6 5"/>',
-         f'<image x="{BX}" y="{BY}" width="{BW}" height="{IMG_H * S}" href="data:image/jpeg;base64,{img}" '
-         f'xlink:href="data:image/jpeg;base64,{img}"/>',
+         f'<image x="{BX}" y="{BY}" width="{BW}" height="{IMG_H * S}" href="data:image/png;base64,{img}" '
+         f'xlink:href="data:image/png;base64,{img}"/>',
          f'<text x="{BX + BW / 2}" y="{BY + IMG_H * S + 34}" font-size="15" text-anchor="middle" fill="{t["role"]}">'
          'Alif Ensemble E8 DevKit · the M55, U85, MRAM and SRAM are all inside the ALIF E8 chip</text>']
 
