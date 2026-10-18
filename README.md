@@ -265,7 +265,7 @@ python -m pytest host/tests -q                       # host tests
 |---|---|
 | Moamen Soliman | EEG Model Architecture, Training & Optimization |
 | Philippine Chauvet | Embedded AI Engineering, Firmware & Hardware Integration |
-| Jihyung Ku | Frontend Engineering & UI/UX Design |
+| Cindy Ku | Frontend Engineering & UI/UX Design |
 
 ## Credits
 
