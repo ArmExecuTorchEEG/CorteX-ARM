@@ -1,6 +1,6 @@
 # Architecture
 
-Real-time left/right motor-imagery decoding on the Alif Ensemble E8 DevKit. The laptop replays held-out BCI IV 2a trials sample by sample over UART. The Cortex-M55 (HP core) does the signal processing, the Ethos-U85 runs TinyEEGNet, and the on-board IMU gates predictions made while the board moves. The pipeline diagram is in the README (`docs/media/pipeline.svg`); this page expands it.
+Real-time left/right motor-imagery decoding on the Alif Ensemble E8 DevKit. The laptop replays held-out BCI IV 2a trials sample by sample over UART. The Cortex-M55 (HP core) does the signal processing, the Ethos-U85 runs TinyEEGNet, and the on-board IMU gates predictions made while the board moves. The README shows the architecture (`docs/media/pipeline.svg`) and the preprocessing chain (`docs/media/signal.svg`); this page expands both.
 
 ## Block diagram
 
@@ -118,7 +118,7 @@ Expected build noise: every build prints two `-Wnan-infinity-disabled` warnings 
 
 ## Preprocessing pseudocode
 
-What `firmware/src/preprocess.cpp` and `host/pipeline_ref.py` implement; equations and constants are in the README signal-path section.
+What `firmware/src/preprocess.cpp` and `host/pipeline_ref.py` implement; equations and constants are in [Signal path equations](#signal-path-equations).
 
 ```
 state: z[ch][sec][2] = 0               # biquad state, 22 channels × 4 sections (float64)
@@ -151,3 +151,96 @@ infer_window():
     if motion_in_last_500_ms: cls = -1   # IMU gate
     emit_json(t, seq, trial, subject, cls, raw_cls, conf, logits, lat_us, motion, label)
 ```
+
+## End-to-end pipeline (ASCII)
+
+Raw digital samples from the dataset file go to the board untouched; every processing step runs on the E8.
+
+```
+LAPTOP                                                       ALIF E8 BOARD
+======                                                       =============
+
+ ~/mne_data/.../A03E.mat                                        UART4, 921600 baud
+ BCI IV 2a, subject 3, session 2                                      |
+ 22 EEG ch, 250 Hz, digital samples                                   v
+ (ADC step 100/2048 uV), cue marks, labels            +-------------------------------+
+          |                                           | uart_rx: parse frames         |
+          v                                           | 0xAA55 data / 0xAA56 control  |
+ +----------------------------+                       +---------------+---------------+
+ | export_replay.py (once)    |                                       | 22 x int16, 250 Hz
+ | - pick 22 EEG ch, 2a order |                                       v
+ | - int16 = uV * 20.48       |                       +-------------------------------+
+ |   (exact dataset counts)   |                       | 1. decode  uV = count/20.48   |
+ | - cue sample index, label  |                       +---------------+---------------+
+ +-------------+--------------+                                       v
+               | A03_session2.npz                      +-------------------------------+
+               v                                      | 2. CAR  x -= mean(22 ch)      |
+ +----------------------------+                       +---------------+---------------+
+ | bridge.py (live)           |                                       v
+ | - RESET, SET_SUBJECT 3     |                       +-------------------------------+
+ | - every 4 ms: one frame    |  frames, 250 Hz       | 3. band-pass 7-30 Hz          |
+ |   0xAA55,22,seq,int16[22]  | --------------------> |    4 biquads, DF2-T, state    |
+ | - CUE frame before each    |                       +---------------+---------------+
+ |   trial's cue sample       |                                       v
+ | - NO filter, NO scaling    |                       +-------------------------------+
+ +-------------+--------------+                       | 4. keep even samples -> 125 Hz|
+               ^                                      |    ring buffer 22 x 256       |
+               | JSON lines                           +---------------+---------------+
+               |  {"cls","conf","lat_us","motion"}                    | at cue + 2.544 s
+ +-------------+--------------+                       +-------------------------------+
+ | UDP 127.0.0.1:5555         |                       | 5. EA:   X = A[subject] . X   |
+ |   demo_ui.py  (LEFT/RIGHT, |                       |    scale: X = X / 0.969       |
+ |   conf bar, motion flag)   |                       |    int8:  q = round(X/0.0696)-12
+ |   measure.py (accuracy,    |                       +---------------+---------------+
+ |   latency -> board_metrics)|                                       v
+ +----------------------------+                       +-------------------------------+
+                                                      | 6. Ethos-U85 NPU              |
+                                                      |    TinyEEGNet wide32 int8     |
+                                                      |    (1,1,22,256) -> 2 logits   |
+                                                      +---------------+---------------+
+                                                                      v
+                                                      +-------------------------------+
+                                                      | argmax -> cls (0 L / 1 R)     |
+                                                      | softmax -> conf               |
+                                                      | IMU moved in last 0.5 s?      |
+                                                      |   yes -> cls = -1, red LED    |
+                                                      | LED green=L blue=R            |
+                                                      | JSON line -> UART             |
+                                                      +-------------------------------+
+```
+
+One prediction per trial, 2.544 s after the cue (window end); every 256 ms in free-run. Board latency last sample → JSON ≈ 0.6 ms (0.25 ms alignment on the M55 + 0.32 ms NPU). The whole board path is packaged as one firmware image; `edge_eeg.SelfTest+SSE-320-U85` replays an embedded raw stream through it on the Corstone-320 FVP (`Test_result: PASS`, [results/fvp_selftest.md](../results/fvp_selftest.md)).
+
+## Signal path equations
+
+Deterministic arithmetic from `firmware/model/params.json` (`v0.5-distill`). Code `firmware/src/preprocess.cpp`; reference `host/pipeline_ref.py`, matched bit for bit (`make -C firmware/tests test`, FVP self-test).
+
+```mermaid
+flowchart LR
+  A["UART frame<br/>int16 counts, 22 ch, 250 Hz"] --> B["1. Decode<br/>x = count × 0.048828125 µV"]
+  B --> C["2. CAR<br/>x_c = x − mean over 22 ch"]
+  C --> D["3. Band-pass 7–30 Hz<br/>4 biquads, DF2-T, state per channel"]
+  D --> E["4. Decimate ×2<br/>keep even samples → 125 Hz"]
+  E --> F["5. Ring buffer 22 × 256<br/>window = [cue+62, cue+318) at 125 Hz"]
+  F --> G["6. Euclidean alignment<br/>X̃ = A_s · X  (22×22 per subject)"]
+  G --> H["7. Scale<br/>X̂ = X̃ / 0.96926"]
+  H --> I["8. Quantize<br/>q = clip(round(X̂ / 0.069558) − 12, −128, 127)"]
+  I --> J["TinyEEGNet int8 on Ethos-U85<br/>(1,1,22,256) → 2 logits"]
+  J --> K["argmax, softmax conf,<br/>motion gate → JSON"]
+```
+
+Per 250 Hz sample $n$ ($\mathbf{x}[n] \in \mathbb{R}^{22}$, µV, `channel_order`):
+
+1. **Decode.** $x_c[n] = \text{count}_c[n] \cdot 100/2048$ µV. BCI IV 2a ADC step; lossless.
+2. **CAR.** $x^{\text{car}}_c[n] = x_c[n] - \frac{1}{22}\sum_{k=1}^{22} x_k[n]$. Removes recording reference; datasets and board share one montage.
+3. **Causal band-pass 7–30 Hz.** Butterworth order 4 at 250 Hz, four SOS $(b_0,b_1,b_2,1,a_1,a_2)$ from `sos`, DF2-T, per channel, state never reset, float64: $y[n] = b_0 u[n] + s_1[n-1]$, $\quad s_1[n] = b_1 u[n] - a_1 y[n] + s_2[n-1]$, $\quad s_2[n] = b_2 u[n] - a_2 y[n]$, section after section. Reference: NumPy `sosfilt`.
+4. **Decimate.** $z[m] = y[2m]$ (even $n$ from first sample after RESET), 125 Hz. Band-pass is the anti-alias filter. $m_{\text{cue}} = \lfloor n_{\text{cue}}/2 \rfloor$.
+5. **Window.** $X \in \mathbb{R}^{22 \times 256}$ = samples $m_{\text{cue}}+62 \ldots m_{\text{cue}}+317$ (cue + 0.496 s to cue + 2.544 s). Free run: newest 256 every 32 samples.
+6. **Euclidean alignment** (Zanini et al. 2019, per window). $\tilde X = A_s X$, $A_s = \bar R_s^{-1/2}$, $\bar R_s = \frac{1}{24}\sum_{t=1}^{24} X_t X_t^{\top}/256 + 10^{-3}\,\text{tr}(\cdot)/22 \cdot I$: mean covariance of subject's 24 unlabeled calibration trials (session 2 trials 1–24), offline, all 9 in `ea_matrices`, picked by `SET_SUBJECT`. Whitens spatial covariance toward identity; one model serves every subject.
+7. **Scale.** $\hat X = \tilde X / 0.969264$ (`input_scale`, std of aligned training set) → unit variance.
+8. **Quantize.** $q = \text{clip}\big(\text{round}(\hat X / 0.0695584) + (-12),\, -128,\, 127\big)$ (`input_quant_scale`, `input_zero_point`, round half to even). `.pte` takes float $(q + 12)\cdot 0.0695584$, re-quantizes to exactly $q$; all conv/linear int8 on Ethos-U85.
+9. **Output.** Logits $\ell_0$ (left), $\ell_1$ (right); class $= \arg\max \ell$; conf $= \text{softmax}(\ell)_{\text{class}}$; IMU motion in last 500 ms → class −1 (gated).
+
+Pseudocode of steps 1–9: [below](#preprocessing-pseudocode).
+
+Steps 2, 6, 7 are linear spatial maps; they commute with the first (temporal) conv, so could fold into spatial depthwise weights of a per-subject `.pte`. Steps 3–4: stateful per-sample IIR, stay on CPU. Shipped build keeps 2–8 on CPU, one shared `.pte`. Cost at 400 MHz: steps 1–4 ≈ 250 cycles/sample (0.6 µs); 6–8 ≈ 100 k cycles/window (0.25 ms); inference 128 k NPU cycles (0.32 ms).

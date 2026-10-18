@@ -64,20 +64,23 @@ ICONS = {
 
 # (col, row, place, icon, title, tools, role lines)
 CARDS = [
-    (0, 0, "host", "wave", "EEG REPLAY", "BCI IV 2a · session 2", ["held-out trials, streamed at 250 Hz"]),
-    (1, 0, "host", "laptop", "HOST BRIDGE", "bridge.py", ["frames samples; no filtering, no ML"]),
-    (2, 0, "board", "plug", "UART LINK", "921600 baud · 0xAA55", ["uint8 n_ch · uint16 seq · int16[n_ch]"]),
-    (2, 1, "m55", "chip", "CORTEX-M55 DSP", "ring buffer · 7–30 Hz IIR", ["normalize · 2 s window (22×500)"]),
-    (1, 1, "u85", "npu", "ETHOS-U85 NPU", "TinyEEGNet int8 · ExecuTorch", ["(1,1,22,500) → 2 logits, left / right"]),
-    (0, 1, "m55", "shield", "MOTION GATE", "IMU threshold", ["drops the window when the board moves"]),
-    (0, 2, "board", "imu", "IMU", "ICM-42670 · I2C", ["100 Hz accel, on the board"]),
+    (0, 0, "host", "wave", "EEG REPLAY", "BCI IV 2a · session 2", ["held-out trials, sample by sample"]),
+    (1, 0, "host", "laptop", "HOST BRIDGE", "bridge.py", ["raw samples only; no filtering, no ML"]),
+    (2, 0, "board", "plug", "UART LINK", "921600 baud · 0xAA55 frames", ["22 ch × int16 per sample, 250 Hz"]),
+    (2, 1, "m55", "chip", "PREPROCESSING", "CAR · 7–30 Hz · 125 Hz · EA", ["int8 window 22 × 256 · Figure 2"]),
+    (1, 1, "u85", "npu", "ETHOS-U85 NPU", "TinyEEGNet-wide int8 · ExecuTorch", ["22 × 256 → 2 logits in 0.32 ms"]),
+    (0, 1, "m55", "shield", "MOTION GATE", "IMU > 0.25 g in last 500 ms", ["suppresses the prediction"]),
+    (0, 2, "board", "imu", "IMU", "ICM-42670-P · I3C", ["100 Hz accel, on the board"]),
     (1, 2, "board", "led", "OUTPUT", "LEDs · UART JSON", ["green left · blue right · red motion"]),
-    (2, 2, "host", "monitor", "DEMO UI", "demo_ui.py", ["class, confidence, latency, motion"]),
+    (2, 2, "host", "monitor", "DEMO UI", "demo_ui.py · measure.py", ["class, confidence, latency, motion"]),
 ]
 
+# Card drawn with an animated outline: it is expanded in Figure 2 (make_signal_svg.py).
+HIGHLIGHT = (2, 1)
+
 BANDS = [
-    (598, "OFFLINE BUILD", "BCI IV 2a → TinyEEGNet → int8 PTQ → Vela → .pte", "v0.1-baseline · v0.2-fvp"),
-    (656, "VERIFY", "FVP 20/20 test vectors · board output == PyTorch", "latency · NPU cycles · accuracy"),
+    (598, "OFFLINE BUILD", "ml/: 4 teachers → student → int8 → Vela → .pte", "release v0.5-distill"),
+    (656, "VERIFY", "FVP self-test bit-exact · replay 1,080/1,080 trials", "latency · NPU cycles · accuracy"),
 ]
 
 
@@ -120,6 +123,11 @@ def build(theme):
         p.append(f'<text x="{x + 22}" y="{y + 84}" font-size="14.5" font-weight="600" fill="{t["tools"]}">{esc(tools)}</text>')
         for i, line in enumerate(role):
             p.append(f'<text x="{x + 22}" y="{y + 110 + 18 * i}" font-size="13" fill="{t["role"]}">{esc(line)}</text>')
+
+    hx, hy = COLS[HIGHLIGHT[0]], ROWS[HIGHLIGHT[1]]
+    p.append(f'<rect x="{hx - 6}" y="{hy - 6}" width="{CW + 12}" height="{CH + 12}" rx="20" fill="none" '
+             f'stroke="rgba({HUES["m55"]},{t["edge_a"]})" stroke-width="2" stroke-dasharray="8 6">'
+             '<animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.6s" repeatCount="indefinite"/></rect>')
 
     r0, r1, r2 = ROWS
     c0, c1, c2 = COLS
