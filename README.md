@@ -29,6 +29,14 @@ Stroke-rehab BCI. User imagines left or right hand movement; board classifies it
 <img src="docs/media/overview.png" alt="Overview: an EEG cap is the target input; in this demo the public BCI Competition IV 2a dataset replaces it. 22-channel EEG streams over UART at 250 Hz into the Alif E8 board (Cortex-M55 preprocessing, Ethos-U85 inference), which sends the predicted hand to a PC that moves a cursor left or right" width="100%">
 </picture><br><sub>Overview. No EEG cap in this demo: held-out trials from the public BCI Competition IV 2a dataset stream to the board as a cap would.</sub></p>
 
+## Development Repository
+
+The technical development behind CorteX ARM is documented in **[EEG-BCI-Pipeline-Development](https://github.com/ArmExecuTorchEEG/EEG-BCI-Pipeline-Development)**.
+
+This repository preserves the EEG model research, preliminary prototypes, embedded AI deployment workflows, firmware and UART integration, physical hardware validation, and frontend development that contributed to the final prototype.
+
+It also includes the development branches, implementation history, and technical validation reports.
+
 ## Demo
 
 ### Live demo on the Alif E8
@@ -87,7 +95,8 @@ End-to-end latency on the board is not measured yet; the FVP estimate is under 1
 <img src="docs/media/pipeline.svg" alt="Figure 1. System architecture: BCI IV 2a replay and host bridge on the laptop, UART into the Alif E8, preprocessing on the Cortex-M55, TinyEEGNet-wide int8 on the Ethos-U85, IMU motion gate, LEDs and JSON out to the demo UI" width="900">
 </picture><br><sub><b>Figure 1.</b> System architecture. The chip on each card shows where it runs: HOST (laptop), M55 (Cortex-M55), U85 (Ethos-U85 NPU), BOARD (peripherals). The highlighted PREPROCESSING block is expanded in Figure 2.</sub></p>
 
-One `.pte` (TinyEEGNet-wide student wide32_ft, release `v0.5-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s; 74.6 % int8 mean over 9 subjects × 3 seeds in Reproduce_Baselines) serves all nine subjects. `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. Previous model `v0.3-distill`: same contract, `./tools/fetch_model.sh v0.3-distill`. Detailed block diagram, end-to-end ASCII diagram, signal-path equations, memory map, timing budget: [`docs/architecture.md`](docs/architecture.md). **Step-by-step deploy (get model → build → flash → stream raw dataset signals → read predictions): [`docs/deploy_runbook.md`](docs/deploy_runbook.md).**
+One `.pte` (TinyEEGNet-wide `wide32_ft` student, release `v0.5-distill`, 11,456 B, 125 Hz input, 256 samples = 2.048 s; 74.6% mean INT8 accuracy across 9 subjects and 3 seeds, documented in [EEG-BCI-Pipeline-Development](https://github.com/ArmExecuTorchEEG/EEG-BCI-Pipeline-Development)) serves all nine subjects.
+ `SET_SUBJECT` only switches the subject's 22×22 Euclidean-alignment matrix. Previous model `v0.3-distill`: same contract, `./tools/fetch_model.sh v0.3-distill`. Detailed block diagram, end-to-end ASCII diagram, signal-path equations, memory map, timing budget: [`docs/architecture.md`](docs/architecture.md). **Step-by-step deploy (get model → build → flash → stream raw dataset signals → read predictions): [`docs/deploy_runbook.md`](docs/deploy_runbook.md).**
 
 ### Workload placement
 
